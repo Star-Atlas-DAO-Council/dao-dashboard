@@ -518,7 +518,7 @@
     const rows = W.map((w) => `<tr${w.track ? "" : ` class="ed-only"`}>
       <td><strong>${esc(w.name || short(w.wallet))}</strong>${w.multisig ? `<span class="chip acc" title="Pays out through a ${esc(w.multisig.program ?? "Squads")} multisig${msName(w) ? `: ${esc(msName(w))}` : ""}, found on chain">Multisig</span>` : ""}${w.note ? `<div class="sub">${esc(w.note)}</div>` : ""}${story(w)}</td>
       <td>${solAcc(w.wallet)}</td>
-      <td>${w.label ? `<span class="chip">${esc(w.label)}</span>` : `<span class="blank">—</span>`}</td>
+      <td>${w.label ? (/^PIP-[0-9]+$/i.test(w.label) ? `<a class="chip" href="#votes/${w.label.replace(/[^0-9]/g, "")}" title="Open this PIP">${esc(w.label)}</a>` : `<span class="chip">${esc(w.label)}</span>`) : `<span class="blank">—</span>`}</td>
       ${w.now ? `<td class="n">${num(w.now.ATLAS)}</td><td class="n">${num(w.now.USDC, 2)}</td><td class="n">${num(w.now.SOL, 2)}</td>${usdCell(w.now)}` : `<td colspan="4" class="sub">${w.track ? "balances appear after the next update" : "balance not tracked"}</td>`}
       ${editing() ? `<td class="r"><button class="btn sm ed-btn" data-act="wal-open" data-wallet="${esc(w.wallet)}">Edit</button><button class="btn sm ed-btn" data-act="wal-reuse" data-wallet="${esc(w.wallet)}" title="The wallet now serves another purpose: earlier payouts keep the current one">Reuse</button></td>` : ""}
     </tr>`).join("");
@@ -2068,6 +2068,86 @@
       const tb = t.querySelector("table");
       if (tb && tb.scrollWidth > t.clientWidth + 1) t.classList.add("scroll");
     }
+    floatHead(true);
+  }
+
+  // Dates wrap only between the year and the month-day ("2026" over "10-21"), never as "2026-" over "10-21"
+  // and never inside "10-21". Every date in rendered text becomes .dt: the year, then the month-day led by its
+  // hyphen. When the month-day wraps to a line of its own, that hyphen lands left of the clip edge and is cut
+  // off (styles.css .dt). The text itself stays the same, so copying a date or reading a cell is unchanged.
+  const DATE_RE = /(?<![0-9])([0-9]{4})-([0-9]{2}-[0-9]{2})(?![0-9])/g;
+  const DATE_SKIP = "svg, script, style, textarea, option, title, pre, code, [contenteditable], .dt";
+  function splitDates(root) {
+    if (!root || typeof document.createTreeWalker !== "function") return;
+    const nodes = [];
+    if (root.nodeType === 3) nodes.push(root);
+    else if (root.nodeType === 1) {
+      const w = document.createTreeWalker(root, 4);
+      for (let n = w.nextNode(); n; n = w.nextNode()) nodes.push(n);
+    }
+    for (const n of nodes) {
+      const s = n.nodeValue;
+      DATE_RE.lastIndex = 0;
+      if (!s || !DATE_RE.test(s) || !n.parentElement || n.parentElement.closest(DATE_SKIP)) continue;
+      // test() leaves lastIndex after the match and matchAll() copies it: reset, or the date is skipped and the
+      // same text is put back unchanged, which the MutationObserver sees as new text (endless loop, frozen tab).
+      DATE_RE.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let at = 0;
+      for (const m of s.matchAll(DATE_RE)) {
+        if (m.index > at) frag.append(s.slice(at, m.index));
+        const d = document.createElement("span");
+        d.className = "dt";
+        d.innerHTML = `<span class="dt-y">${m[1]}</span><span class="dt-md"><span class="dt-h">-</span>${m[2]}</span>`;
+        frag.append(d);
+        at = m.index + m[0].length;
+      }
+      if (at < s.length) frag.append(s.slice(at));
+      n.replaceWith(frag);
+    }
+  }
+
+  // A sideways-scrolling table (.scroll) cannot pin its own header, so while its header is scrolled out
+  // of view a copy of it floats under the page header (.float-head), with the same column widths and
+  // moved sideways with the table. `rebuild` drops the copy (after a redraw or a resize).
+  let fhEl = null, fhFor = null;
+  function floatHead(rebuild = false) {
+    if (rebuild && fhEl) { fhEl.remove(); fhEl = null; fhFor = null; }
+    if (typeof getComputedStyle !== "function") return;
+    const line = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--top-h")) || 0;
+    let box = null, head = null;
+    for (const t of document.querySelectorAll(".tbl.scroll")) {
+      const th = t.querySelector(":scope > table > thead");
+      if (!th || t.closest("tr.detail")) continue;
+      const r = t.getBoundingClientRect();
+      if (th.getBoundingClientRect().top < line && r.bottom > line + th.offsetHeight * 2) { box = t; head = th; break; }
+    }
+    if (!box) { if (fhEl) fhEl.hidden = true; return; }
+    if (fhFor !== box || !fhEl) {
+      fhEl?.remove();
+      const tb = box.querySelector(":scope > table");
+      fhEl = document.createElement("div");
+      fhEl.className = "float-head";
+      fhEl.setAttribute("aria-hidden", "true");
+      const tbl = document.createElement("table");
+      tbl.className = tb.className;
+      tbl.style.width = tb.getBoundingClientRect().width + "px";
+      const copy = head.cloneNode(true);
+      // Same width per column as the real header, so the copy lines up with the rows below it.
+      const src = head.querySelectorAll("th"), dst = copy.querySelectorAll("th");
+      src.forEach((c, i) => { const w = c.getBoundingClientRect().width + "px"; dst[i].style.width = w; dst[i].style.minWidth = w; dst[i].style.maxWidth = w; });
+      copy.querySelectorAll("[id]").forEach((e) => e.removeAttribute("id"));
+      tbl.appendChild(copy);
+      fhEl.appendChild(tbl);
+      document.body.appendChild(fhEl);
+      fhFor = box;
+    }
+    const r = box.getBoundingClientRect();
+    fhEl.hidden = false;
+    fhEl.style.top = line - 1 + "px";
+    fhEl.style.left = r.left + box.clientLeft + "px";
+    fhEl.style.width = box.clientWidth + "px";
+    fhEl.firstChild.style.transform = "translateX(" + -box.scrollLeft + "px)";
   }
 
   // Section navigation beside the page (wide screens only, see .toc in styles.css): the page's
@@ -2247,6 +2327,7 @@
     const view = $("#view");
     view.innerHTML = previewInfo() + views[r](param);
     Charts.mount(view);
+    splitDates(view);
     fitTables();
     buildToc();
     keepAnchor();
@@ -2323,6 +2404,16 @@
     let tocFrame = 0;
     window.addEventListener("scroll", () => { if (!tocFrame) tocFrame = requestAnimationFrame(() => { tocFrame = 0; markToc(); }); }, { passive: true });
     window.addEventListener("resize", fitTables);
+    // Dates in anything drawn outside render() (edit bar, tooltips, live sheet updates) get the same wrapping.
+    if (typeof MutationObserver === "function" && document.body) {
+      new MutationObserver((recs) => { for (const r of recs) for (const n of r.addedNodes) if (n.isConnected) splitDates(n); })
+        .observe(document.body, { childList: true, subtree: true });
+    }
+    // The floating table header follows the page scroll and each table's sideways scroll (scroll events
+    // of a table box do not bubble, so they are caught on the way down).
+    let fhFrame = 0;
+    const fhSoon = () => { if (!fhFrame) fhFrame = requestAnimationFrame(() => { fhFrame = 0; floatHead(); }); };
+    window.addEventListener("scroll", fhSoon, { passive: true, capture: true });
     // Pinned table headers sit right under the page header, whose height changes with wrapping.
     const top = document.querySelector(".top");
     // Measured once right away too: a linked section is scrolled to before the observer first reports,

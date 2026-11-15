@@ -298,6 +298,14 @@ tr.ed-only > td { background-color: var(--editor-soft); }
 /* Tables inside a card frame */
 .tbl { overflow-x: auto; border: 1px solid var(--line); background-color: var(--surface); padding-bottom: 12px; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
+/* A date wraps only as "2026" over "10-21" (app.js splitDates). The month-day's leading hyphen sits in a box
+   exactly as wide as the year's right margin: on one line it fills that margin, on a new line it falls left of
+   the clip edge and is cut off. */
+.dt { display: inline-flex; flex-wrap: wrap; overflow-x: clip; --dt-h: .36em; }
+.dt-y, .dt-md { white-space: nowrap; }
+.dt-y { margin-right: var(--dt-h); }
+.dt-md { margin-left: calc(-1 * var(--dt-h)); }
+.dt-h { display: inline-block; width: var(--dt-h); text-align: center; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 thead th { font: 500 11px/1.3 var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: transparent; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
 /* Table headers stay pinned under the page header while their table scrolls past. That needs the
@@ -308,6 +316,12 @@ thead th { font: 500 11px/1.3 var(--f-body); letter-spacing: .06em; text-transfo
    bottom line, since a collapsed border does not travel with a pinned cell. */
 .tbl:not(.scroll) { overflow-x: visible; }
 .tbl:not(.scroll) thead th { position: sticky; top: calc(var(--top-h, 1px) - 1px); z-index: 1; background-color: var(--surface); box-shadow: inset 0 -1px 0 var(--line-strong); }
+/* A .scroll table's header floats as a copy instead (app.js floatHead): fixed under the page header,
+   clipped to the table's box and moved sideways with it. */
+.float-head { position: fixed; z-index: 5; overflow: hidden; pointer-events: none; background-color: var(--surface); box-shadow: inset 0 -1px 0 var(--line-strong); }
+.float-head[hidden] { display: none; }
+.float-head table { table-layout: fixed; }
+.float-head thead th { box-sizing: border-box; background-color: var(--surface); box-shadow: inset 0 -1px 0 var(--line-strong); }
 /* Every table row, on every page: rows are separated by a strip of page background, and the row
    under the mouse lights up so its buttons are easy to place. */
 tbody td { border-bottom: 2px solid var(--bg); }
@@ -344,6 +358,7 @@ tr.detail td { background: var(--surface-2); padding: 14px 16px 18px; }
 .blank { color: var(--muted); font-style: italic; }
 
 /* Chips */
+a.chip:hover { text-decoration: none; color: var(--accent-ink); border-color: var(--accent-ink); }
 .chip { display: inline-block; font: 500 11px/1.6 var(--f-body); padding: 0 8px; border-radius: 4px; white-space: nowrap; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-2); }
 .chip.good { background: var(--good-soft); color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
 .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
