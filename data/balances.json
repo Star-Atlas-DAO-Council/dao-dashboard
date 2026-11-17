@@ -425,7 +425,36 @@
      "POLIS": 0
     }
    }
+  },
+  "2026-11-17": {
+   "at": 1794916508,
+   "treasury": {
+    "SOL": 0.315155307,
+    "ATLAS": 832794262.3281548,
+    "USDC": 210259.170611,
+    "POLIS": 1.23550999
+   },
+   "fund": {
+    "SOL": 0.021002002,
+    "ATLAS": 272854680,
+    "USDC": 0,
+    "POLIS": 0
+   },
+   "oldTreasury": {
+    "SOL": 0,
+    "ATLAS": 0,
+    "USDC": 0,
+    "POLIS": 0
+   },
+   "tracked": {
+    "2kVfGpfYkWBxqKKB8vFFDKZH6qwZExLYvCpNpUEhRbFd": {
+     "SOL": 0.001,
+     "ATLAS": 3394098,
+     "USDC": 0,
+     "POLIS": 0
+    }
+   }
   }
  },
- "updatedAt": "2026-11-16T11:23:53.431Z"
+ "updatedAt": "2026-11-17T11:55:08.612Z"
 }
