@@ -1,14 +1,14 @@
 {
  "latest": {
-  "at": "2026-11-17T11:55:08.000Z",
+  "at": "2026-11-18T11:46:12.000Z",
   "accounts": 7611,
-  "running": 5010,
-  "expired": 2591,
+  "running": 5009,
+  "expired": 2592,
   "empty": 10,
-  "polisRunning": 121036432,
-  "polisExpired": 10131312,
-  "pvp": 750018171,
-  "pvpWeightedDaysLeft": 1491,
+  "polisRunning": 121035019,
+  "polisExpired": 10139875,
+  "pvp": 749443534,
+  "pvpWeightedDaysLeft": 1490,
   "multiplier": 10,
   "maxLockDays": 1825
  },
@@ -114,6 +114,19 @@
    "polisExpired": 10131312,
    "pvp": 750018171,
    "pvpWeightedDaysLeft": 1491,
+   "multiplier": 10,
+   "maxLockDays": 1825
+  },
+  "2026-11-18": {
+   "at": "2026-11-18T11:46:12.000Z",
+   "accounts": 7611,
+   "running": 5009,
+   "expired": 2592,
+   "empty": 10,
+   "polisRunning": 121035019,
+   "polisExpired": 10139875,
+   "pvp": 749443534,
+   "pvpWeightedDaysLeft": 1490,
    "multiplier": 10,
    "maxLockDays": 1825
   }
