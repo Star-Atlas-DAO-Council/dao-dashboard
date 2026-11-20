@@ -17,7 +17,6 @@
   const MEMBER_HEADERS = ["Name", "Role", "Term", "Start", "End", "Elected (PIP)", "Wallet", "Discord", "X", "Image", "Show"];
   const MINUTES_HEADERS = ["Date", "Title", "Minutes", "Show"];
   // Payments the DAO knows are coming (e.g. an invoice). "Paid by (tx)" is filled in once it is paid.
-  const UPCOMING_HEADERS = ["ID", "Due", "Paid from", "For", "Fiscal year", "Amount", "Currency", "Description", "Paid by (tx)", "Repeats", "Until"];
   // "Completed on" / "Completed by": the Council signed the milestone off (delivered); "Paid by (tx)": the
   // payout that paid it. Milestones made from the Tracker's old counts say "Tracker" in Completed by.
   const MILESTONE_HEADERS = ["ID", "PIP", "#", "Milestone", "Amount", "Currency", "Paid by (tx)", "Completed on", "Completed by"];
@@ -174,5 +173,5 @@
     return [m.name, m.role || "Council member", m.term || "", textDate(m.start), textDate(m.end), m.electedIn ? `PIP-${m.electedIn}` : "", m.wallet || "", m.discord || "", m.x ? String(m.x).replace(/^@/, "") : "", m.image || "", "TRUE"];
   }
 
-  root.SheetMap = { clean, LABEL_HEADERS, DOC_HEADERS, WALLET_HEADERS, MEMBER_HEADERS, MINUTES_HEADERS, UPCOMING_HEADERS, MILESTONE_HEADERS, CHECKLIST_HEADERS, MINUTES_MAX, PHASES, PIP_FIELDS, pipFormValue, pipSheetValue, minutesText, isoDate, textDate, findHeaderRow, colIndex, colLetter, a1, a1Tab, trackerColumns, locatePip, validate, memberRow };
+  root.SheetMap = { clean, LABEL_HEADERS, DOC_HEADERS, WALLET_HEADERS, MEMBER_HEADERS, MINUTES_HEADERS, MILESTONE_HEADERS, CHECKLIST_HEADERS, MINUTES_MAX, PHASES, PIP_FIELDS, pipFormValue, pipSheetValue, minutesText, isoDate, textDate, findHeaderRow, colIndex, colLetter, a1, a1Tab, trackerColumns, locatePip, validate, memberRow };
 })(typeof window !== "undefined" ? window : globalThis);

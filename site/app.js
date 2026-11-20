@@ -69,9 +69,9 @@
 
   const kpi = (k, v, unit, s, cls = "") => `<div class="kpi${cls}"><span class="k">${esc(k)}</span><span class="v">${v}${unit ? `<small>${esc(unit)}</small>` : ""}</span>${s ? `<span class="s">${s}</span>` : ""}</div>`;
   const head = (title, right = "", tag = "") => `<div class="sec-head">${tag ? `<div class="title-row"><h2>${esc(title)}</h2>${tag}</div>` : `<h2>${esc(title)}</h2>`}${right}</div>`;
-  // A page that is still being built: a red tag next to its title (public site, so said plainly).
-  const DEV_TAG = `<span class="chip dev" title="Work in progress: the figures are not checked yet and should not be relied on.">Under development</span>`;
-  const sub = (title, right = "") => `<div class="sec-head"><h3>${esc(title)}</h3>${right}</div>`;
+  // A page beyond the delivered scope: a blue tag next to its title.
+  const EXT_TAG = `<span class="chip ext" title="Not part of the PIP-36 delivery: a preview of how the dashboard could be extended.">Possible extension</span>`;
+  const sub = (title, right = "", tag = "") => `<div class="sec-head">${tag ? `<div class="title-row"><h3>${esc(title)}</h3>${tag}</div>` : `<h3>${esc(title)}</h3>`}${right}</div>`;
   // A table's Filter button (top right of its heading) opens a filter row under the heading. Closing it
   // clears the filters, so nothing stays hidden behind a closed row.
   const filterBtn = (key) => `<button class="btn sm${ui.flt[key] ? " on" : ""}" data-act="flt" data-key="${key}" aria-expanded="${ui.flt[key] ? "true" : "false"}">Filter</button>`;
@@ -233,7 +233,7 @@
   // ---------- two-way editing (only when enabled and an editor is signed in) ----------
   const ED = window.Editor;
   const SMap = window.SheetMap;
-  const ed = { labelFor: null, msgs: {}, pip: null, member: false, memberMsg: null, seeded: false, docs: null, docFor: null, docMsg: {}, minutes: null, minutesMsg: null, upcoming: false, upcomingMsg: null, upPay: null };
+  const ed = { labelFor: null, msgs: {}, pip: null, member: false, memberMsg: null, seeded: false, docs: null, docFor: null, docMsg: {}, minutes: null, minutesMsg: null };
   const editing = () => Boolean(ED && ED.state.signedIn);
   // Maintenance elements (Data health, "Payouts to label"): shown to signed-in editors. Without
   // editing (or in a preview, where no one can sign in) they stay public. Not secret: their data is
@@ -277,11 +277,7 @@
     </section>` : "");
 
   // Documents on a payout, read live from the sheet's "Payment documents" tab (signed-in editors only).
-  // A payout also shows the documents of the upcoming payment it settled (filed under "upcoming:<ID>").
-  const docsOf = (p) => {
-    const ups = (D.upcoming ?? []).filter((u) => (u.paid ?? [u.paidBy]).includes(p.sig)).map((u) => `upcoming:${u.id}`);
-    return (ed.docs ?? []).filter((d) => (d.signature === p.sig && (!d.recipient || d.recipient === (p.owner ?? ""))) || ups.includes(d.signature));
-  };
+  const docsOf = (p) => (ed.docs ?? []).filter((d) => d.signature === p.sig && (!d.recipient || d.recipient === (p.owner ?? "")));
   async function loadDocs() {
     if (ed.docsLoading) return;
     ed.docsLoading = true;
@@ -883,50 +879,6 @@
         } catch (e) { st.error = e.message; }
         render(); return;
       }
-      // Upcoming payments (Budget page): add one, mark one as paid by its payout.
-      case "up-open": ed.upcoming = true; ed.upEdit = null; ed.upcomingDraft = null; ed.upcomingMsg = null; render(); return;
-      case "up-edit": {
-        const u = (D.budget?.upcoming ?? []).find((x) => x.id === el.dataset.id);
-        if (!u) return;
-        ed.upcoming = true; ed.upEdit = u.id; ed.upDel = null; ed.upcomingMsg = null;
-        ed.upcomingDraft = { due: u.start ?? u.due ?? "", account: u.account ?? "treasury", for: u.for, fiscalYear: u.fiscalYear ?? "", amount: String(u.amount), currency: u.currency, description: u.description, repeats: u.repeats ? u.repeats[0].toUpperCase() + u.repeats.slice(1) : "", until: u.until ?? "" };
-        render(); $("#up-due")?.scrollIntoView({ block: "center", behavior: "smooth" }); return;
-      }
-      case "up-cancel": ed.upcoming = false; ed.upEdit = null; ed.upPay = null; ed.upcomingDraft = null; render(); return;
-      case "up-save": {
-        const u = { due: val("up-due").trim(), account: val("up-from"), for: val("up-for").trim(), fiscalYear: val("up-fy").trim(), amount: val("up-amount").trim(), currency: val("up-cur"), description: val("up-desc").trim(), repeats: val("up-rep"), until: val("up-until").trim() };
-        ed.upcomingDraft = u;
-        el.disabled = true;
-        try {
-          const r = ed.upEdit ? await ED.core.updateUpcoming(ed.upEdit, u) : await ED.core.addUpcoming(u);
-          ed.upcomingMsg = r.error ? { err: r.error } : { ok: ed.upEdit ? `Saved: ${u.for}, ${u.amount} ${u.currency} due ${u.due}.` : `Added: ${u.for}, ${u.amount} ${u.currency} due ${u.due}. Attach the invoice with its Documents button.` };
-          if (!r.error) { ed.upcoming = false; ed.upEdit = null; ed.upcomingDraft = null; if (r.tab) window.DashLive?.addTab?.("upcomingPayments", r.tab, r.gid); liveRefresh(); }
-        } catch (e) { ed.upcomingMsg = { err: e.message }; }
-        render(); return;
-      }
-      // Deleting asks once more in place (no browser dialog).
-      case "up-del": ed.upDel = el.dataset.id; ed.upPay = null; ed.upcomingMsg = null; render(); return;
-      case "up-del-no": ed.upDel = null; render(); return;
-      case "up-del-yes": {
-        el.disabled = true;
-        try {
-          const r = await ED.core.deleteUpcoming(el.dataset.id);
-          ed.upcomingMsg = r.error ? { err: r.error } : { ok: "Deleted. Its documents stay in the Drive folder." };
-          if (!r.error) { ed.upDel = null; if (ed.upEdit === el.dataset.id) { ed.upcoming = false; ed.upEdit = null; } liveRefresh(); }
-        } catch (e) { ed.upcomingMsg = { err: e.message }; }
-        render(); return;
-      }
-      case "up-pay-open": ed.upPay = ed.upPay === el.dataset.id ? null : el.dataset.id; ed.upcomingMsg = null; render(); return;
-      case "up-pay-save": {
-        const sig = (val("up-pay-tx").trim() || val("up-pay-pick")).trim();
-        el.disabled = true;
-        try {
-          const r = await ED.core.markUpcomingPaid(el.dataset.id, sig);
-          ed.upcomingMsg = r.error ? { err: r.error } : { ok: r.count ? `Payment ${r.count} recorded. The payout now carries this payment's category and fiscal year; the next due date moves on by one period.` : "Marked as paid. The payout now carries this payment's category and fiscal year." };
-          if (!r.error) { ed.upPay = null; liveRefresh(); }
-        } catch (e) { ed.upcomingMsg = { err: e.message }; }
-        render(); return;
-      }
       case "mem-open": ed.member = true; ed.memberEdit = null; ed.memberDraft = null; ed.memberMsg = null; render(); return;
       case "mem-cancel": ed.member = false; ed.memberEdit = null; ed.memberDraft = null; render(); return;
       case "mem-list": ed.memberMsg = null; return loadMembers();
@@ -1059,7 +1011,6 @@
       </table></div>
       <p class="src">Label a payout with a cost category such as <em>Foundation</em> to list it here; further payouts to the same wallet are then suggested for that category. Click a purpose for its transactions.</p>
     </section>
-    ${D.budget && editing() ? upcomingSection(D.budget) : ""}
     <section class="sec">
       ${sub("Funded PIPs", headRight("Click a row for its payouts", "fund"))}
       ${ui.flt.fund ? `<div class="controls">
@@ -1070,7 +1021,8 @@
         ${FUNDED_HEAD}
         <tbody>${rows || `<tr><td colspan="7" class="muted">Nothing matches these filters.</td></tr>`}</tbody>
       </table></div>
-    </section>`;
+    </section>
+    ${editing() ? upcomingTeaser() : ""}`;
   };
 
   // Every on-chain movement of the DAO accounts, filterable.
@@ -1695,136 +1647,22 @@
     </section>`;
   };
 
-  // Known upcoming payments (the sheet's "Upcoming payments" tab), e.g. an invoice that is due. Editors
-  // add them here, attach the invoice (Documents) and mark them paid once the payout is on chain.
-  function upcomingSection(B) {
-    const U = B.upcoming ?? [];
-    if (!U.length && !editing()) return "";
-    const accName = (a) => (a === "fund" ? "Ecosystem Fund" : a === "treasury" ? "DAO Treasury" : `<span class="chip warn">not set</span>`);
-    const today = new Date().toISOString().slice(0, 10);
-    const cands = (u) => D.payments.filter((p) => p.direction === "out" && (p.onBehalfOf ?? p.account) === u.account && p.symbol === u.currency && day(p.t) >= (u.due ? new Date(Date.parse(u.due) - 120 * 86400000).toISOString().slice(0, 10) : "0") && !(D.upcoming ?? []).some((x) => (x.paid ?? [x.paidBy]).includes(p.sig))).slice(0, 30);
-    const rows = U.map((u) => {
-      const key = `upcoming:${u.id}:`, docs = docsOf({ sig: `upcoming:${u.id}`, owner: "" }).length;
-      const btns = editing() ? `<button class="btn sm ed-btn" data-act="up-edit" data-id="${esc(u.id)}">Edit</button><button class="btn sm ed-btn" data-act="doc-open" data-key="${esc(key)}">${docs ? `Documents (${docs})` : "Documents"}</button><button class="btn sm ed-btn" data-act="up-pay-open" data-id="${esc(u.id)}">Mark paid</button><button class="btn sm danger" data-act="up-del" data-id="${esc(u.id)}">Delete</button>` : "";
-      const del = editing() && ed.upDel === u.id ? `<tr class="detail ed-only"><td colspan="7"><div class="edact"><span>Delete this upcoming payment (${esc(u.for)}, ${esc(num(u.amount, 2))} ${esc(u.currency)} due ${esc(u.due ?? "")})?${docs ? ` Its ${docs} document${docs === 1 ? "" : "s"} stay in the Drive folder.` : ""}</span><button class="btn danger" data-act="up-del-yes" data-id="${esc(u.id)}">Yes, delete</button><button class="btn" data-act="up-del-no">Keep it</button></div></td></tr>` : "";
-      const pay = editing() && ed.upPay === u.id ? `<tr class="detail ed-only"><td colspan="${editing() ? 7 : 6}"><div class="edform">
-          <label class="wide">Paid by this payout<select id="up-pay-pick"><option value="">Choose a payout…</option>${cands(u).map((p) => `<option value="${esc(p.sig)}">${esc(day(p.t))} · ${esc(num(p.amount, 2))} ${esc(p.symbol)} · ${esc(ownerLabel(p.owner) || short(p.owner))}${p.category || p.pip ? ` · now: ${esc(p.category ?? `PIP-${p.pip}`)}` : ""}</option>`).join("")}</select></label>
-          <label class="wide">Or paste its transaction<input id="up-pay-tx" placeholder="transaction signature"></label>
-          <div class="edact wide"><button class="btn primary" data-act="up-pay-save" data-id="${esc(u.id)}">Mark as paid</button><button class="btn" data-act="up-pay-open" data-id="${esc(u.id)}">Cancel</button></div>
-        </div></td></tr>` : "";
-      const docRow = editing() && ed.docFor === key ? `<tr class="detail ed-only"><td colspan="7">${docPanel({ sig: `upcoming:${u.id}`, owner: "", prefix: `${u.due ?? ""} ${u.amount} ${u.currency}`.trim() })}</td></tr>` : "";
-      const rep = u.repeats ? `<div class="sub">${esc(u.repeats)}${u.until ? ` until ${esc(u.until)}` : ""}${u.paid?.length ? ` · ${u.paid.length} paid` : ""}</div>` : "";
-      return `<tr><td class="mono">${esc(u.due ?? "—")}${u.overdue ? `<div><span class="chip warn">due</span></div>` : ""}${rep}</td><td>${accName(u.account)}</td><td>${/^PIP-\d+$/i.test(u.for) ? pipLink(Number(u.for.replace(/\D/g, ""))) : esc(u.for)}</td><td class="mono">${u.repeats ? `<span class="sub">year due</span>` : esc(u.fiscalYear ?? "—")}</td><td class="n">${num(u.amount, 2)} ${esc(u.currency)}${u.projected ? "" : `<div class="sub">not in the projection</div>`}</td><td>${esc(u.description)}</td>${editing() ? `<td class="r">${btns}</td>` : ""}</tr>${del}${pay}${docRow}`;
-    }).join("");
-    const d = ed.upcomingDraft ?? {};
-    const cats = [...new Set([...(D.budget?.foundation?.categories ?? []), ...D.payments.map((p) => p.category).filter(Boolean)])];
-    const form = `<div class="edform">
-      <label>Due *<input id="up-due" placeholder="YYYY-MM-DD" value="${esc(d.due ?? "")}"></label>
-      <label>Repeats<select id="up-rep">${["", "Monthly", "Quarterly", "Yearly"].map((r) => `<option value="${r}"${(d.repeats ?? "") === r ? " selected" : ""}>${r || "Once"}</option>`).join("")}</select></label>
-      <label>Until<input id="up-until" placeholder="last due date, empty = no end" value="${esc(d.until ?? "")}"></label>
-      <label>Paid from *<select id="up-from"><option value="treasury"${d.account === "fund" ? "" : " selected"}>DAO Treasury</option><option value="fund"${d.account === "fund" ? " selected" : ""}>Ecosystem Fund</option></select></label>
-      <label>For *<input id="up-for" list="up-for-list" placeholder="e.g. Operating costs or PIP-36" value="${esc(d.for ?? "")}"><datalist id="up-for-list">${cats.map((c) => `<option value="${esc(c)}">`).join("")}${D.pips.filter((x) => x.funding).map((x) => `<option value="PIP-${x.pip}">`).join("")}</datalist></label>
-      <label>Fiscal year<input id="up-fy" placeholder="e.g. 2027" value="${esc(d.fiscalYear ?? "")}"></label>
-      <label>Amount *<input id="up-amount" placeholder="e.g. 12446.95" value="${esc(d.amount ?? "")}"></label>
-      <label>Currency<select id="up-cur"><option${d.currency === "ATLAS" ? "" : " selected"}>USDC</option><option${d.currency === "ATLAS" ? " selected" : ""}>ATLAS</option></select></label>
-      <label class="wide">Description<input id="up-desc" placeholder="e.g. Registered office and secretary fees 2027" value="${esc(d.description ?? "")}"></label>
-      <p class="ed-err wide">Never enter bank or wire details or a person's name: the sheet and its backup are public. Attach the invoice with Documents after saving.</p>
-      <div class="edact wide"><button class="btn primary" data-act="up-save">${ed.upEdit ? "Save changes" : "Add upcoming payment"}</button><button class="btn" data-act="up-cancel">Cancel</button></div>
-    </div>`;
-    const totals = Object.entries(B.upcomingTotals ?? {}).map(([a, o]) => `${a === "fund" ? "Ecosystem Fund" : a === "treasury" ? "DAO Treasury" : "not set"}: ${Object.entries(o).map(([c, v]) => `${num(v, 0)} ${esc(c)}`).join(" + ")}`).join(" · ");
-    return `<section class="sec">
-      ${sub("Upcoming payments", `<span class="src">known, not paid yet${totals ? ` · ${totals}` : ""}${U.some((u) => u.repeats) ? " (repeating: next 12 months)" : ""}</span>`)}
-      ${U.length ? `<div class="tbl"><table>
-        <thead><tr><th>Due</th><th>Paid from</th><th>For</th><th>Fiscal year</th><th class="r">Amount</th><th>Description</th>${editing() ? "<th></th>" : ""}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>` : ""}
-      ${editing() ? `<div class="ed-zone">${ed.upcoming ? form : `<p class="edact"><button class="btn ed-btn" data-act="up-open">Add upcoming payment</button></p>`}${okMsg(ed.upcomingMsg)}</div>` : ""}
-      <p class="src">Payments the DAO knows are coming, such as an invoice that is due, from the sheet's "Upcoming payments" tab. The projection takes each one off its account on its due date; Foundation costs also count in their fiscal year above. Marking one paid links it to its payout, which then carries its category and fiscal year, and it leaves this list. A repeating payment (e.g. a monthly expense account) stays listed at its next due date: each Mark paid records one payment until its last due date. For its cost category it replaces the past average in the projection.</p>
+  // Upcoming payments, a possible extension beyond PIP-36, shown as a teaser: its heading, a short pitch
+  // and a screenshot that fades out (site/assets/upcoming_teaser.png). Signed-in editors only.
+  const upcomingTeaser = () => `<section class="sec">
+      ${sub("Upcoming payments", "", EXT_TAG)}
+      <p class="lede full"><strong class="ext-note">A possible extension, not part of the PIP-36 delivery.</strong> Payments the DAO knows are coming, such as invoices and recurring costs: entered once with their documents, marked paid against the payout that settled them, and counted in the Budget page&#39;s projection. The image below is just a teaser. Contact Ryden (@ryden.systems on Discord) for info on this feature.</p>
+      <img class="teaser" src="assets/upcoming_teaser.png" width="1315" height="296" alt="Preview of Upcoming payments: a due invoice with its account, purpose, fiscal year and amount, and the editor buttons to edit it, attach documents and mark it paid">
     </section>`;
-  }
 
-  // Budget: income, spending by kind, the Foundation's yearly budget (PIP-2), open commitments and a
-  // projection of Treasury and Fund to the next refill dates (PIP-23). Estimates from past months.
-  views.budget = () => {
-    const B = D.budget;
-    if (!B) return `<section class="sec">${head("Budget")}<p class="muted">No budget data yet.</p></section>`;
-    const S = B.spend, I = B.income, F = B.foundation, P = B.projection;
-    const perMo = (v, unit) => `${compact(v)} ${unit}/month`;
-    const pct = (x) => `${(x * 100).toFixed(1)}%`;
-    const signed = (x) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(0)}%`;
-    const fRule = F.rule;
-    const span = (m) => (m == null ? "not shrinking" : m >= 24 ? `${(m / 12).toFixed(1)} years` : m < 1 ? "under a month" : Math.round(m) === 1 ? "1 month" : `${Math.round(m)} months`);
-    const owedT = B.owed?.treasury ?? {}, owedF = B.owed?.fund ?? {};
-    const owedText = (o) => Object.entries(o).map(([c, v]) => `${num(v)} ${esc(c)}`).join(" + ") || "nothing";
-    // A projected balance below zero: the account would run short.
-    const amt = (v) => (v < 0 ? `<span class="short" title="the account would run short">${num(v)}</span>` : num(v));
-    const fund = D.limit?.refill;
-    return `
+  // Budget, a possible extension beyond PIP-36, shown as a teaser: its intro and a screenshot that fades
+  // out (site/assets/budget_teaser.png). Signed-in editors only.
+  views.budget = () => `
     <section class="sec">
-      ${head("Budget", `<span class="src">Solana mainnet · ${B.window.months} complete months (${esc(B.window.from)} to ${esc(B.window.to)}) · rules ${fRule ? `<a href="#votes/${fRule.pip}">PIP-${fRule.pip}</a>, ` : ""}<a href="#limit">PIP-23</a></span>`, DEV_TAG)}
-      <p class="lede"><strong class="dev-note">Work in progress: these figures are not checked yet and should not be relied on.</strong> Where the DAO's money comes from, what it is spent on, and where Treasury and Ecosystem Fund are heading if the last ${B.window.months} months continue. Everything still owed to approved PIPs is assumed to be paid; new PIPs are decided one vote at a time, so they are not projected. An estimate from past months, not a plan.</p>
+      ${head("Budget", `<span class="src">rules <a href="#votes/2">PIP-2</a>, <a href="#limit">PIP-23</a></span>`, EXT_TAG)}
+      <p class="lede full"><strong class="ext-note">A possible extension, not part of the PIP-36 delivery.</strong> What this page can become: the DAO&#39;s budget in one place. Where the money comes from, what it is spent on, and where Treasury and Ecosystem Fund are heading. With the payments the Council knows are coming (invoices, recurring costs) and the approved PIPs still owed, it moves from past averages to a forward plan: the Foundation budget (PIP-2) per fiscal year, the USDC runway, and the balances at every Fund refill (PIP-23). The image below is just a teaser. Contact Ryden (@ryden.systems on Discord) for info on this feature.</p>
     </section>
-
-    <section class="sec">
-      ${sub("DAO Treasury", `<span class="src">all income arrives here</span>`)}
-      <div class="kpis">
-        ${kpi("Income", compact(I.atlas), "ATLAS/month", `SAGE fees ${compact(I.crafting)} · marketplace ${compact(I.atlasTransfers)}${I.trend != null ? ` · ${signed(I.trend)} recent half-year` : ""}`)}
-        ${kpi("Income", num(I.usdc), "USDC/month", "marketplace fees")}
-        ${kpi("Running costs", num(S.treasury.running.USDC.perMonth), "USDC/month", `${num(S.treasury.running.USDC.total)} in ${B.window.months} months, averaged${S.treasury.running.ATLAS.perMonth ? ` · plus ${perMo(S.treasury.running.ATLAS.perMonth, "ATLAS")}` : ""}${B.recurringMonthly ? ` · repeating payments ${num(B.recurringMonthly)} USDC/month` : ""}`)}
-        ${kpi("USDC runway", span(B.usdcRunwayAfterOwed ?? B.usdcRunwayMonths), "", `${num(Math.round(-(B.runwayRate ?? B.rate.tU)))} USDC/month net outflow`)}
-      </div>
-      <div class="tbl"><table>
-        <thead><tr><th>Last ${B.window.months} months</th><th class="r">ATLAS</th><th class="r">USDC</th></tr></thead>
-        <tbody>
-          <tr><td>Income</td><td class="n">${num(Math.round(I.atlas * B.window.months))}</td><td class="n">${num(Math.round(I.usdc * B.window.months))}</td></tr>
-          <tr><td>Running costs <div class="sub">payouts labelled with a cost category</div></td><td class="n">${num(S.treasury.running.ATLAS.total)}</td><td class="n">${num(S.treasury.running.USDC.total)}</td></tr>
-          ${(S.treasury.runningByCategory ?? []).map((c) => `<tr><td><span class="sub">· ${esc(c.category)}${c.foundation ? " (Foundation budget, PIP-2)" : ""}${(B.replaced?.categories ?? []).includes(c.category) ? " · projected from its repeating payment" : ""}</span></td><td class="n sub">${num(c.ATLAS)}</td><td class="n sub">${num(c.USDC)}</td></tr>`).join("")}
-          ${B.unlabelled.payouts ? `<tr><td>Not labelled yet <div class="sub">${B.unlabelled.payouts} payout${B.unlabelled.payouts === 1 ? "" : "s"}; not projected until labelled · ${txLink("label them", { account: "treasury", match: "attention", dir: "out" })}</div></td><td class="n">${num(B.unlabelled.ATLAS)}</td><td class="n">${num(B.unlabelled.USDC)}</td></tr>` : ""}
-          <tr><td>PIP payouts from the Treasury <div class="sub">one-off, by vote; not projected</div></td><td class="n">${num(S.treasury.pip.ATLAS.total)}</td><td class="n">${num(S.treasury.pip.USDC.total)}</td></tr>
-          <tr><td><strong>Still owed</strong> on approved PIPs <div class="sub">see the list below</div></td><td class="n"><strong>${num(owedT.ATLAS ?? 0)}</strong></td><td class="n"><strong>${num(owedT.USDC ?? 0)}</strong></td></tr>
-        </tbody>
-      </table></div>
-    </section>
-
-    ${fRule ? `<section class="sec">
-      ${sub("Foundation budget", `<span class="src"><a href="#votes/${fRule.pip}">PIP-${fRule.pip}</a>: up to ${num(fRule.budgetUsdPerYear)} USD a year</span>`)}
-      <div class="tbl"><table>
-        <thead><tr><th>Fiscal year</th><th class="r">USDC paid</th><th class="r">Upcoming</th><th class="r">Budget</th><th>Used</th><th class="r">Payouts</th></tr></thead>
-        <tbody>${F.years.length ? F.years.map((y) => { const u = y.cap ? (y.USDC + (y.upcoming ?? 0)) / y.cap : 0; return `<tr><td class="mono">${esc(y.year)}</td><td class="n">${num(y.USDC)}${y.ATLAS ? `<div class="sub">+ ${num(y.ATLAS)} ATLAS</div>` : ""}</td><td class="n">${y.upcoming ? `${num(y.upcoming)}<div class="sub">${y.upcomingCount} known, not paid yet</div>` : `<span class="blank">—</span>`}</td><td class="n">${num(y.cap)}</td><td><span class="${u > 1 ? "over" : ""}">${pct(u)}</span><div class="bar${u > 1 ? " over" : ""}" style="margin-top:5px"><span style="width:${Math.min(100, u * 100)}%"></span></div></td><td class="n">${y.payouts}${y.noFiscalYear ? `<div class="sub">${y.noFiscalYear} without fiscal year</div>` : ""}</td></tr>`; }).join("") : `<tr><td colspan="6" class="sub">No payouts labelled with a Foundation cost category yet.</td></tr>`}</tbody>
-      </table></div>
-      <p class="src">${txLink("Foundation transactions →", { q: "Foundation", account: "all", match: "all", dir: "all" })} Counts only payouts and upcoming payments labelled ${(F.categories ?? []).map((c) => `&quot;${esc(c)}&quot;`).join(" or ")} (other running costs such as hosting stay out), by the fiscal year set in each payout's label; a payout without one counts in the year it was paid, so those years are only an approximation. Set it with the payout's Label button on the Payments page. The Foundation is paid in irregular amounts, not monthly. ${B.unlabelled.USDC ? `${num(B.unlabelled.USDC)} USDC paid from the Treasury in the last ${B.window.months} months has no label yet; if some of it was for the Foundation, labelling it counts it here.` : ""}</p>
-    </section>` : ""}
-
-    ${upcomingSection(B)}
-
-    <section class="sec">
-      ${sub("Projection", `<span class="src">to the next refill dates</span>`)}
-      <div class="tbl"><table>
-        <thead><tr><th>Date</th><th class="r">Treasury ATLAS</th><th class="r">Treasury USDC</th><th class="r">Fund ATLAS</th><th class="r">Fund share</th><th class="r">Refill</th></tr></thead>
-        <tbody>${P.map((s) => `<tr><td class="mono">${esc(s.date)}${s.now ? `<div class="sub">today</div>` : s.afterOwed ? `<div class="sub">after paying what approved PIPs are owed and what is already due</div>` : ""}</td><td class="n">${amt(s.treasuryATLAS)}</td><td class="n">${amt(s.treasuryUSDC)}</td><td class="n">${amt(s.fundATLAS)}</td><td class="n">${pct(s.share)}</td><td class="n">${s.now || s.afterOwed ? "" : s.refillATLAS || s.refillUSDC ? `<strong>${num(s.refillATLAS)} ATLAS</strong>${s.refillUSDC ? `<div class="sub">+ ${num(s.refillUSDC)} USDC</div>` : ""}` : `<span class="sub">none due</span>`}</td></tr>`).join("")}</tbody>
-      </table></div>
-      <p class="src">Assumes the last ${B.window.months} months continue: Treasury ${perMo(B.rate.tA, "ATLAS")} and ${B.rate.tU >= 0 ? "+" : "−"}${num(Math.abs(Math.round(B.rate.tU)))} USDC/month (income minus running costs; payouts not labelled yet are left out); Fund −${perMo(-B.rate.fA, "ATLAS")} (its average PIP payouts). What approved PIPs are still owed is paid first (timing not known, so the projection assumes now; PIPs marked "check" below included)${Object.keys(B.notProjected ?? {}).length ? `, except the Fund's ${owedText(B.notProjected)}, which are converted to ATLAS when paid` : ""}${B.owed?.unknown ? `, and ${owedText(B.owed.unknown)} owed by PIPs whose paying account is not set in the sheet` : ""}. New PIPs are not included. A negative balance means the account would run short. At each refill date the PIP-23 rule tops the Fund up to its target share of the DAO's ATLAS.</p>
-    </section>
-
-    <section class="sec">
-      ${sub("Ecosystem Fund", `<a class="src" href="#limit">PIP limit and rules →</a>`)}
-      <div class="kpis">
-        ${kpi("PIP payouts", compact(S.fund.pip.ATLAS.perMonth + S.fund.running.ATLAS.perMonth), "ATLAS/month", `${num(S.fund.pip.ATLAS.total + S.fund.running.ATLAS.total)} in ${B.window.months} months${S.fund.running.ATLAS.total ? ` · ${compact(S.fund.running.ATLAS.total)} not matched to a PIP yet` : ""}`)}
-        ${fund ? kpi("Share of DAO ATLAS", pct(fund.share), "", `target ${fund.targetSharePercent}%`) : ""}
-        ${D.limit?.current ? kpi("PIP limit", compact(D.limit.current.limit), "ATLAS", "per PIP") : ""}
-        ${kpi("Still owed", compact(owedF.ATLAS ?? 0), "ATLAS", `${new Set(B.commitments.filter((c) => c.account === "fund").map((c) => c.pip)).size} approved PIPs not fully paid${Object.keys(owedF).some((c) => c !== "ATLAS") ? ` · plus ${owedText(Object.fromEntries(Object.entries(owedF).filter(([c]) => c !== "ATLAS")))}, paid in ATLAS` : ""}`)}
-      </div>
-    </section>
-
-    ${B.commitments.length ? `<section class="sec">
-      ${sub("Approved, not fully paid")}
-      <div class="tbl"><table>
-        <thead><tr><th>PIP</th><th>Paid from</th><th>Status</th><th class="r">Still owed</th></tr></thead>
-        <tbody>${B.commitments.map((c) => `<tr><td>${pipLink(c.pip)} ${esc(c.name ?? "")}</td><td>${c.account === "fund" ? "Ecosystem Fund" : c.account === "treasury" ? "DAO Treasury" : `<span class="chip warn">not set</span>`}${c.accountFromSheet ? "" : `<div class="sub">${c.account === "unknown" ? `"Ecosystem Fund?" is empty in the sheet; left out of the projection` : `"Ecosystem Fund?" is empty; taken from where its payouts came from`}</div>`}</td><td>${c.state === "unpaid" ? "nothing paid yet" : "partly paid"}${c.stale ? `<div class="sub"><span class="chip warn">check</span> voted ${esc(c.voted)}, nothing paid since: does it still stand?</div>` : ""}</td><td class="n">${c.amount != null ? `${num(c.amount)} ${esc(c.currency ?? "")}` : `<span class="sub">not known: ${esc(c.note)}</span>`}</td></tr>`).join("")}</tbody>
-      </table></div>
-      <p class="src">From the PIP tracker and the matched payouts (same figures as the Payments page). An unpaid PIP owes what it was authorized; the Ecosystem Fund pays everything in ATLAS, so amounts authorized in USDC, GBP or EUR are converted when paid. Recurring budgets (the Foundation's, PIP-2) are counted under Foundation budget, not here.</p>
-    </section>` : ""}`;
-  };
+    <section class="sec"><img class="teaser" src="assets/budget_teaser.png" width="1312" height="2389" alt="Preview of the Budget page: Treasury income and running costs, upcoming payments, the Foundation budget per fiscal year and a projection to the next refill dates"></section>`;
 
   views.balance = () => {
     // Balance sheet: accounts in use. A retired account (emptied, kept for its history) is left out.
@@ -2075,7 +1913,9 @@
   // and never inside "10-21". Every date in rendered text becomes .dt: the year, then the month-day led by its
   // hyphen. When the month-day wraps to a line of its own, that hyphen lands left of the clip edge and is cut
   // off (styles.css .dt). The text itself stays the same, so copying a date or reading a cell is unchanged.
-  const DATE_RE = /(?<![0-9])([0-9]{4})-([0-9]{2}-[0-9]{2})(?![0-9])/g;
+  // An opening bracket before a date and punctuation after it stay attached to it: a date is one unbreakable
+  // unit, so "2024-08-09, nothing" could otherwise wrap before the comma.
+  const DATE_RE = /(\(?)(?<![0-9])([0-9]{4})-([0-9]{2}-[0-9]{2})(?![0-9])([,.;:!?)]*)/g;
   const DATE_SKIP = "svg, script, style, textarea, option, title, pre, code, [contenteditable], .dt";
   function splitDates(root) {
     if (!root || typeof document.createTreeWalker !== "function") return;
@@ -2098,7 +1938,7 @@
         if (m.index > at) frag.append(s.slice(at, m.index));
         const d = document.createElement("span");
         d.className = "dt";
-        d.innerHTML = `<span class="dt-y">${m[1]}</span><span class="dt-md"><span class="dt-h">-</span>${m[2]}</span>`;
+        d.innerHTML = `<span class="dt-y">${m[1]}${m[2]}</span><span class="dt-md"><span class="dt-h">-</span>${m[3]}${m[4]}</span>`;
         frag.append(d);
         at = m.index + m[0].length;
       }
@@ -2336,7 +2176,7 @@
     if (bar) bar.innerHTML = editBar();
   }
 
-  const EDIT_ACTIONS = new Set(["plan-cancel", "ms-add", "ms-edit", "ms-pay", "ms-del", "ms-done", "ms-import", "ms-import-all", "ms-save", "ms-pay-save", "ms-pay-clear", "ms-del-yes", "ck-add", "ck-edit", "ck-del", "ck-save", "ck-del-yes", "ck-tick", "up-edit", "up-del", "up-del-yes", "up-del-no", "up-open", "up-cancel", "up-save", "up-pay-open", "up-pay-save", "min-open", "min-cancel", "min-keep", "min-discard", "min-fmt", "min-copy", "min-preview", "min-take", "min-save", "min-overwrite", "ed-signin", "ed-signout", "ed-update", "doc-open", "doc-close", "doc-upload", "wal-open", "wal-reuse", "wal-cancel", "wal-save", "ed-preview", "lbl-open", "lbl-cancel", "lbl-save", "lbl-clear", "lbl-clear-yes", "lbl-clear-no", "pip-edit", "pip-new", "pip-new-cancel", "pip-add", "pip-reload", "pip-cancel", "pip-save", "pip-overwrite", "mem-seed", "mem-open", "mem-cancel", "mem-save", "mem-list", "mem-edit", "mem-del", "mem-del-no", "mem-del-yes", "min-del", "min-del-no", "min-del-yes", "wal-del", "wal-del-no", "wal-del-yes", "doc-del", "doc-del-no", "doc-del-yes"]);
+  const EDIT_ACTIONS = new Set(["plan-cancel", "ms-add", "ms-edit", "ms-pay", "ms-del", "ms-done", "ms-import", "ms-import-all", "ms-save", "ms-pay-save", "ms-pay-clear", "ms-del-yes", "ck-add", "ck-edit", "ck-del", "ck-save", "ck-del-yes", "ck-tick", "min-open", "min-cancel", "min-keep", "min-discard", "min-fmt", "min-copy", "min-preview", "min-take", "min-save", "min-overwrite", "ed-signin", "ed-signout", "ed-update", "doc-open", "doc-close", "doc-upload", "wal-open", "wal-reuse", "wal-cancel", "wal-save", "ed-preview", "lbl-open", "lbl-cancel", "lbl-save", "lbl-clear", "lbl-clear-yes", "lbl-clear-no", "pip-edit", "pip-new", "pip-new-cancel", "pip-add", "pip-reload", "pip-cancel", "pip-save", "pip-overwrite", "mem-seed", "mem-open", "mem-cancel", "mem-save", "mem-list", "mem-edit", "mem-del", "mem-del-no", "mem-del-yes", "min-del", "min-del-no", "min-del-yes", "wal-del", "wal-del-no", "wal-del-yes", "doc-del", "doc-del-no", "doc-del-yes"]);
   function editClick(e) {
     const el = e.target.closest("[data-act]");
     if (!el || !EDIT_ACTIONS.has(el.dataset.act)) return false;
@@ -2480,7 +2320,7 @@
     $("#stamp").innerHTML = `Data as of ${esc(t(D.dataAt))} UTC${liveAt ? ` · sheet live ${esc(t(liveAt).slice(11))} UTC` : ""}`;
   }
   let playerTouched = false;
-  const anyFormOpen = () => Boolean(ed.newPip || ed.wallet || ed.labelFor || ed.docFor || ed.pip || ed.member || ed.clearFor || ed.minutes || ed.upcoming || ed.upPay || ed.upDel || ed.plan);
+  const anyFormOpen = () => Boolean(ed.newPip || ed.wallet || ed.labelFor || ed.docFor || ed.pip || ed.member || ed.clearFor || ed.minutes || ed.plan);
   // After a save: read the sheet again right away, so the change shows within seconds.
   const liveRefresh = () => window.DashLive?.refresh?.();
 

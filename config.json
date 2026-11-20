@@ -60,7 +60,6 @@
       "paymentDocuments": "Payment documents",
       "wallets": "Wallets",
       "meetingMinutes": "Meeting minutes",
-      "upcomingPayments": "Upcoming payments",
       "pipMilestones": "PIP milestones",
       "checklists": "Checklists"
     },
@@ -116,12 +115,6 @@
         "_note": "A recurring annual budget of no more than 100,000 USD from the Treasury for the Foundation's operations and maintenance; anything beyond needs a DAO vote in advance."
       }
     ]
-  },
-  "budget": {
-    "_note": "Budget page settings. windowMonths: complete months the averages use. foundationCategories: the payout labels (cost categories) that count against the Foundation's yearly budget (PIP-2); keep this to labels used only for Foundation costs, so other running costs (e.g. Hosting) never mix in. projectRefills: how many upcoming refill dates the projection shows.",
-    "windowMonths": 12,
-    "foundationCategories": ["Foundation"],
-    "projectRefills": 4
   },
   "reconcile": {
     "ignoreUsdcBelow": 100,

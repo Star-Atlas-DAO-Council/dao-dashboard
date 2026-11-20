@@ -455,67 +455,6 @@
         return { saved: true, deleted: hits.length };
       },
 
-      // Upcoming payments (e.g. an invoice that is due): one row each, with an ID that its documents
-      // are filed under. Text is written with a leading apostrophe so nothing is read as a formula.
-      // Returns the tab's gid, so the page can read a tab it has only just created.
-      async addUpcoming(u) {
-        const v = upcomingValues(u);
-        if (v.error) return v;
-        const tab = tabs.upcomingPayments || "Upcoming payments";
-        await core.ensureTab(tab, SM.UPCOMING_HEADERS);
-        const rows = await core.readTab(tab);
-        const hi = SM.findHeaderRow(rows, ["Due", "Amount"]);
-        if (hi < 0) return { error: `The "${tab}" tab has no header row with "Due" and "Amount".` };
-        const id = "U" + Date.now().toString(36).toUpperCase();
-        const values = { ID: id, ...v.values, "Paid by (tx)": "" };
-        const h = await withColumns(tab, rows, hi), row = [];
-        for (const [k, v] of Object.entries(values)) { const c = SM.colIndex(h, k); if (c >= 0) row[c] = v; }
-        await core.appendRow(tab, Array.from(row, (v) => v ?? ""));
-        const j = await call("?fields=sheets.properties(title,sheetId)");
-        const gid = (j.sheets || []).find((s) => s.properties.title === tab)?.properties.sheetId;
-        return { saved: true, id, tab, gid: gid == null ? null : String(gid) };
-      },
-      // Change an upcoming payment (found by its ID); its documents stay filed under the same ID.
-      async updateUpcoming(id, u) {
-        const v = upcomingValues(u);
-        if (v.error) return v;
-        const f = await findUpcoming(id);
-        if (f.error) return f;
-        for (const [k, val] of Object.entries(v.values)) { const c = SM.colIndex(f.h, k); if (c >= 0) await core.writeCell(f.tab, f.row, c, val); }
-        return { saved: true, updated: true };
-      },
-      // Delete an upcoming payment's row. Its documents stay in Drive and in the documents tab.
-      async deleteUpcoming(id) {
-        const f = await findUpcoming(id);
-        if (f.error) return f;
-        await core.deleteRows(f.tab, [f.row]);
-        return { saved: true, deleted: true };
-      },
-      // Mark an upcoming payment as paid by the payout (transaction signature) that settled it. For a
-      // repeating payment the transaction is added to the ones before (one per payment made), which
-      // moves its next due date on by one period; returns how many payments are recorded.
-      async markUpcomingPaid(id, signature) {
-        const tab = tabs.upcomingPayments || "Upcoming payments";
-        const sig = SM.clean(signature);
-        if (!/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(sig)) return { error: "Enter the payout's transaction signature." };
-        const rows = await core.readTab(tab);
-        const hi = SM.findHeaderRow(rows, ["Due", "Amount"]);
-        if (hi < 0) return { error: `The "${tab}" tab was not found.` };
-        const h = rows[hi], cId = SM.colIndex(h, "ID"), cPaid = SM.colIndex(h, "Paid by");
-        if (cId < 0 || cPaid < 0) return { error: `The "${tab}" tab needs "ID" and "Paid by (tx)" columns.` };
-        const at = rows.findIndex((r, i) => i > hi && same(r[cId], id));
-        if (at < 0) return { error: `No upcoming payment with ID ${id} in the sheet.` };
-        const cRep = SM.colIndex(h, "Repeats");
-        if (cRep >= 0 && SM.clean(rows[at][cRep])) {
-          const before = SM.clean(rows[at][cPaid]).split(/[\s,;]+/).filter(Boolean);
-          if (before.includes(sig)) return { error: "This payout is already recorded for this payment." };
-          await core.writeCell(tab, at, cPaid, [...before, sig].join(" "));
-          return { saved: true, count: before.length + 1 };
-        }
-        await core.writeCell(tab, at, cPaid, sig);
-        return { saved: true };
-      },
-
       // PIP milestones and checklist items: one row each in their own tab (created on the first save),
       // found by their ID. Ticking an item saves the date and who ticked it.
       // Every milestone change also writes the PIP's counts into the Tracker (see syncTrackerCounts).
@@ -595,25 +534,9 @@
         return { saved: true, rows: rows.length };
       },
     };
-    // An upcoming payment's sheet values from the form, checked; or { error }.
-    function upcomingValues({ due, account, for: what, fiscalYear = "", amount, currency = "USDC", description = "", repeats = "", until = "" }) {
-      for (const [v, kind, label] of [[due, "required", "Due"], [due, "date", "Due"], [what, "required", "For"], [fiscalYear, "year", "Fiscal year"], [until, "date", "Until"]]) {
-        const msg = SM.validate(kind, v);
-        if (msg) return { error: `${label}: ${msg}` };
-      }
-      if (!["", "Monthly", "Quarterly", "Yearly"].includes(repeats)) return { error: "Repeats: choose once, monthly, quarterly or yearly." };
-      if (until && !repeats) return { error: "Until: only for a repeating payment." };
-      if (until && SM.isoDate(until) < SM.isoDate(due)) return { error: "Until: the last due date cannot be before the first." };
-      if (!["treasury", "fund"].includes(account)) return { error: "Paid from: choose the DAO Treasury or the Ecosystem Fund." };
-      const n = Number(String(amount).replace(/[,\s]/g, ""));
-      if (!(n > 0)) return { error: "Amount: enter a number above 0." };
-      const text = (s) => (SM.clean(s) ? "'" + SM.clean(s) : "");
-      // A repeating payment's fiscal year is the year each payment falls due, so the column stays empty.
-      return { values: { Due: SM.textDate(due), "Paid from": account === "fund" ? "Ecosystem Fund" : "DAO Treasury", For: text(what), "Fiscal year": repeats ? "" : SM.clean(fiscalYear), Amount: String(n), Currency: currency, Description: text(description), Repeats: repeats, Until: until ? SM.textDate(until) : "" } };
-    }
-    // The header row of one of the dashboard's own tabs, with any of its columns that are missing (e.g.
-    // an Upcoming payments tab made before Repeats and Until existed) added at the end, so no value is dropped on save.
-    async function withColumns(tab, rows, hi, headers = SM.UPCOMING_HEADERS) {
+    // The header row of one of the dashboard's own tabs, with any of its columns that are missing (e.g. a
+    // tab made before a column existed) added at the end, so no value is dropped on save.
+    async function withColumns(tab, rows, hi, headers) {
       const h = [...rows[hi]];
       for (const name of headers) if (SM.colIndex(h, name) < 0) { await core.writeCell(tab, hi, h.length, name); h.push(name); }
       return h;
@@ -672,7 +595,7 @@
       }
     }
     const pipOf = (v) => Number(String(v ?? "").replace(/\D/g, ""));
-    // The dashboard's own row tabs with an ID column, besides Upcoming payments.
+    // The dashboard's own row tabs with an ID column.
     const OWN = {
       milestones: { key: "pipMilestones", name: "PIP milestones", headers: SM.MILESTONE_HEADERS, find: ["#", "Milestone"], prefix: "M", what: "milestone" },
       checklists: { key: "checklists", name: "Checklists", headers: SM.CHECKLIST_HEADERS, find: ["Checklist", "Item"], prefix: "C", what: "checklist item" },
@@ -759,17 +682,6 @@
       const msg = SM.validate("url", evidence);
       if (msg) return { error: `Evidence: ${msg.replace("Image links", "Links")}` };
       return { values: { PIP: `PIP-${pipOf(pip)}`, Checklist: txt(list), Milestone: String(milestone).trim(), Item: txt(item), Evidence: SM.clean(evidence) } };
-    }
-    // The sheet row of an upcoming payment, by its ID.
-    async function findUpcoming(id) {
-      const tab = tabs.upcomingPayments || "Upcoming payments";
-      const rows = await core.readTab(tab);
-      const hi = SM.findHeaderRow(rows, ["Due", "Amount"]);
-      if (hi < 0) return { error: `The "${tab}" tab was not found.` };
-      const h = await withColumns(tab, rows, hi), cId = SM.colIndex(h, "ID");
-      const row = cId < 0 ? -1 : rows.findIndex((r, i) => i > hi && same(r[cId], id));
-      if (row < 0) return { error: `No upcoming payment with ID ${id} in the sheet; it may have been changed there. Reload the page.` };
-      return { tab, h, row };
     }
     return core;
   }

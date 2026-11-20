@@ -55,8 +55,8 @@
   --editor: var(--usdc-text);
   /* Pages or sections still being built ("Under development"): red, their figures are not to be relied on yet. */
   --dev: var(--crit);
-  /* A budget used beyond its cap (e.g. the Foundation's yearly budget). */
-  --over-budget: var(--usdc-text);
+  /* Pages beyond the delivered scope ("Possible extension"). */
+  --ext: var(--usdc-text);
   --editor-soft: color-mix(in srgb, var(--editor) 16%, var(--surface));
   --series-1: var(--atlas-text);
   --series-2: var(--usdc-text);
@@ -185,6 +185,9 @@ main:focus { outline: none; }
 .sec-head h2 { font: 400 clamp(30px, 3.6vw, 40px)/1.05 var(--f-display); text-transform: uppercase; letter-spacing: .035em; }
 .sec-head h3 { font: 500 clamp(16px, 1.8vw, 19px)/1.25 var(--f-head); text-transform: uppercase; letter-spacing: .05em; }
 .lede { color: var(--ink-2); max-width: 78ch; font-size: 14px; }
+.lede.full { max-width: none; }
+/* A page shown as a teaser image (Budget): full width, fading out towards the bottom. */
+.teaser { display: block; width: 100%; height: auto; mask-image: linear-gradient(to bottom, var(--ink) 30%, transparent 95%); }
 .src { font: 12px/1.4 var(--f-body); color: var(--muted); }
 
 /* KPI tiles: label on top, big condensed figure, small unit (govern stat style) */
@@ -301,7 +304,7 @@ table { border-collapse: collapse; width: 100%; font-size: 13px; }
 /* A date wraps only as "2026" over "10-21" (app.js splitDates). The month-day's leading hyphen sits in a box
    exactly as wide as the year's right margin: on one line it fills that margin, on a new line it falls left of
    the clip edge and is cut off. */
-.dt { display: inline-flex; flex-wrap: wrap; overflow-x: clip; --dt-h: .36em; }
+.dt { display: inline-flex; flex-wrap: wrap; overflow-x: clip; --dt-h: .46em; }
 .dt-y, .dt-md { white-space: nowrap; }
 .dt-y { margin-right: var(--dt-h); }
 .dt-md { margin-left: calc(-1 * var(--dt-h)); }
@@ -366,16 +369,14 @@ a.chip:hover { text-decoration: none; color: var(--accent-ink); border-color: va
 .chip.dev  { background: color-mix(in srgb, var(--dev) 16%, transparent); color: var(--dev); border-color: color-mix(in srgb, var(--dev) 45%, transparent); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
 .sec-head .title-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .dev-note { color: var(--dev); font-weight: 500; }
-/* A projected balance below zero. */
-.short { color: var(--crit); }
+.chip.ext  { background: color-mix(in srgb, var(--ext) 16%, transparent); color: var(--ext); border-color: color-mix(in srgb, var(--ext) 45%, transparent); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.ext-note { color: var(--ext); font-weight: 500; }
 .chip.acc  { background: var(--info-soft); color: var(--info); border-color: color-mix(in srgb, var(--info) 40%, transparent); }
 
 /* Progress bar */
 .bar { position: relative; height: 4px; border-radius: 2px; background: var(--line-strong); overflow: hidden; min-width: 70px; }
 .bar > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
 .bar.done > span { background: var(--good); }
-.bar.over > span { background: var(--over-budget); }
-span.over { color: var(--over-budget); }
 
 /* Vote split bar */
 .split { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--line-strong); min-width: 120px; }

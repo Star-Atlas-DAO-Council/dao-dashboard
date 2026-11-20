@@ -3,7 +3,6 @@
 // browser: an edit in the sheet then shows on the next page load without waiting for a build.
 import { reconcile } from "./reconcile.mjs";
 import { fundLimits } from "./limit.mjs";
-import { budgetOf } from "./budget.mjs";
 import { healthChecks } from "./health.mjs";
 import { councilTerms } from "./members.mjs";
 import { rebuildSeries, fullyIndexed } from "./series.mjs";
@@ -18,14 +17,8 @@ export function compute({ config, sources, proposals, ledger, history, now, nowA
   const nowTs = Date.parse(nowAt) / 1000;
 
   // Sheet labels override seed labels for the same payout.
-  // A paid upcoming payment labels the payout that settled it (what it was for, its fiscal year);
-  // a Council label on that payout wins.
-  // A repeating payment labels each of its payouts.
-  const upcomingLabels = (sources.upcoming ?? []).filter((u) => u.for)
-    .flatMap((u) => (u.paid ?? (u.paidBy ? [u.paidBy] : [])).map((sig, i) => ({ signature: sig, recipient: "", label: u.for, confirmed: true, fiscalYear: u.paidYears?.[i] ?? u.fiscalYear })))
-    .filter((u) => !sources.labels.some((l) => l.signature === u.signature));
-  const msLabels = milestoneLabels(sources.milestones ?? []).filter((m) => !sources.labels.some((l) => l.signature === m.signature) && !upcomingLabels.some((u) => u.signature === m.signature));
-  const labels = [...seedLabels.filter((s) => !sources.labels.some((l) => l.signature === s.signature)), ...upcomingLabels, ...msLabels, ...sources.labels];
+  const msLabels = milestoneLabels(sources.milestones ?? []).filter((m) => !sources.labels.some((l) => l.signature === m.signature));
+  const labels = [...seedLabels.filter((s) => !sources.labels.some((l) => l.signature === s.signature)), ...msLabels, ...sources.labels];
   // A wallet reused for a new purpose has one row per purpose; its "Since" (a PIP, whose vote end starts
   // the purpose, or a date) becomes the time the row applies from. The first purpose has none.
   const voteEndTs = (n) => {
@@ -62,7 +55,7 @@ export function compute({ config, sources, proposals, ledger, history, now, nowA
   for (const w of council.warnings) flags.push({ severity: "warning", area: "council", message: w });
   // Paid by the Fund through the Treasury: the Treasury pays a Fund PIP (sheet "Ecosystem Fund?" = YES)
   // and the Fund then sends the Treasury the same amount within 30 days (e.g. PIP-29 and PIP-30 in
-  // April 2026). Those payouts count as the Fund's (onBehalfOf), on the Budget page as well.
+  // April 2026). Those payouts count as the Fund's (onBehalfOf).
   const fundPip = new Map(recon.summary.map((s) => [s.pip, s.ecosystemFund]));
   const reimbursements = recon.legs.filter((l) => l.account === "fund" && l.direction === "out" && l.confidence === "internal");
   const bySig = new Map();
@@ -78,8 +71,7 @@ export function compute({ config, sources, proposals, ledger, history, now, nowA
     if (r) for (const l of legs) { l.onBehalfOf = "fund"; l.reimbursedBy = r.sig; }
   }
   // Which account pays a PIP: the sheet's "Ecosystem Fund?" column, checked against the wallet its
-  // matched payouts actually came from (the dashboard's own guesses, "inferred", are left out). The
-  // Budget page relies on it for what each account still owes.
+  // matched payouts actually came from (the dashboard's own guesses, "inferred", are left out).
   const ACC = { fund: "Ecosystem Fund", treasury: "DAO Treasury" };
   const paidFrom = new Map();
   for (const l of recon.legs) {
@@ -292,7 +284,6 @@ export function compute({ config, sources, proposals, ledger, history, now, nowA
     top: voterList.slice(0, 15).map((w) => ({ ...w, pvp: round2(w.pvp), polis: w.polis == null ? null : round2(w.polis), share: w.daoPvp ? w.pvp / w.daoPvp : null })),
   };
 
-  // Shared by the output and the budget.
   const accountsOut = Object.fromEntries(Object.entries(config.accounts).map(([k, a]) => [k, { label: a.label, wallet: a.wallet, now: now[k], retired: a.retired ?? null }]));
   const payoutsList = recon.legs
       .filter((l) => l.amount > 0 && !(l.confidence === "income" && recurring.has(l.owner)))
@@ -330,8 +321,6 @@ export function compute({ config, sources, proposals, ledger, history, now, nowA
     polisLocks: polisLocks ?? null,
     payments: payoutsList,
     limit,
-    budget: budgetOf({ payments: payoutsList, income, accounts: accountsOut, pips, limit, upcoming: sources.upcoming ?? [], rules: config.daoRules ?? {}, settings: config.budget ?? {}, nowTs }),
-    upcoming: sources.upcoming ?? [],
     series,
     council: sources.council,
     councilChain,

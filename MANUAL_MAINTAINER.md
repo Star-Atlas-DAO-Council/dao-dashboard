@@ -30,7 +30,7 @@ sign in with Google to change the Council's sheet from the dashboard.
 
 | Source | What it provides | Read by |
 |---|---|---|
-| The Council's Google Sheet | PIPs (the Tracker tab), payment labels, wallets, milestones and checklists, upcoming payments, Council members, meeting minutes, payment documents | the build, and every visitor's browser (live, see below) |
+| The Council's Google Sheet | PIPs (the Tracker tab), payment labels, wallets, milestones and checklists, Council members, meeting minutes, payment documents | the build, and every visitor's browser (live, see below) |
 | Star Atlas governance API | proposals, votes, voting power | the build |
 | Solana mainnet, through an RPC endpoint | balances, every transaction of the DAO accounts, the Council multisigs' activity | the build |
 | The Council's YouTube channel (public feed) | meeting recordings | the build |
@@ -53,7 +53,7 @@ governance API (amounts paid, vote results, balances) are calculated, never type
    movements to `data/ledger.json`. Over time the repository itself becomes the index; no outside indexing service
    is used.
 3. **Reconcile:** match every payout to a PIP or a cost category, with a confidence level.
-4. **Compute:** balances, the Ecosystem Fund limit, income, the Budget page, the Data health checks.
+4. **Compute:** balances, the Ecosystem Fund limit, income, the Data health checks.
 5. **Test and publish:** run every test, then publish `dist/` to GitHub Pages and commit the updated `data/` folder.
 
 A daily run takes about one minute.
@@ -310,7 +310,6 @@ through a commit (which also rebuilds the site). Keys starting with `_` are note
 | `governance` | the governance API and the proposals site | if Star Atlas moves them |
 | `rpc` | the default RPC endpoints; the repository secrets override them (section 5) | rarely |
 | `daoRules` | the rules set by PIPs: `fund` (Ecosystem Fund limit and refills), `foundation` (the Foundation's yearly budget) | a PIP that changes a rule (below) |
-| `budget` | the Budget page: averaging window (12 months), which cost categories count as Foundation, how many refills to project | rarely |
 | `reconcile` | payouts below these amounts are not listed as needing a label (100 USDC, 10,000 ATLAS) | rarely |
 
 ### When a PIP changes a rule
@@ -480,12 +479,11 @@ From `daoRules.fund`, one version per PIP, each in force from the day its PIP pa
   was quiet enough to be read in full, so SAGE fees start in April 2024 and earlier inflows are listed one by one.
 - **Other income:** any other inflow, listed individually, or by its income label.
 
-### The Budget page (preview, not part of the PIP-36 delivery)
+### Budget and upcoming payments (possible extensions)
 
-Averages over the last 12 complete months. Income is SAGE fees plus income transfers; running costs are Treasury
-payouts with a cost category plus those not labelled yet; PIP payouts are shown but not projected. The Foundation
-budget (PIP-2) compares payouts and upcoming payments labelled Foundation per fiscal year with the yearly cap of
-100,000 USD. The projection runs Treasury and Fund forward to the next refill dates.
+Not part of the PIP-36 delivery. The Budget page and the Upcoming payments section at the end of the Payments page
+are teasers for signed-in editors: a fixed screenshot each (`site/assets/budget_teaser.png`,
+`site/assets/upcoming_teaser.png`). Nothing is computed or read from the sheet for them.
 
 ### The data folder
 
@@ -510,7 +508,6 @@ tab and column it needs the first time a save needs it; editors normally never t
 | Wallets | wallet and purpose | Wallet, Name, Payout label, Track balance, Note, Since (a PIP or a date, for a reused wallet's later purposes) |
 | PIP milestones | milestone | ID, PIP, #, Milestone, Amount, Currency, Paid by (tx), Completed on, Completed by |
 | Checklists | checklist item | ID, PIP, Checklist, Milestone, Item, Done on, Done by, Evidence |
-| Upcoming payments (preview) | known payment | ID, Due, Paid from, For, Fiscal year, Amount, Currency, Description, Paid by (tx), Repeats, Until |
 | Council members | member and term | Name, Role, Term, Start, End, Elected (PIP), Wallet, Discord, X, Image, Show |
 | Meeting minutes | meeting day | Date, Title, Minutes (Discord formatting), Show |
 | Payment documents | uploaded file | Signature, Recipient, File, Link, Uploaded (UTC), By |

@@ -8,7 +8,7 @@ Council's sheet stores it. Buttons are written in bold, exactly as they appear o
 3. [Payments: labels and documents](#3-payments-labels-and-documents)
 4. [PIPs](#4-pips)
 5. [Milestones and checklists](#5-milestones-and-checklists)
-6. [Upcoming and recurring payments](#6-upcoming-and-recurring-payments)
+6. [Possible extensions: Budget and upcoming payments](#6-possible-extensions-budget-and-upcoming-payments)
 7. [Wallets](#7-wallets)
 8. [Council members and meeting minutes](#8-council-members-and-meeting-minutes)
 9. [Data health](#9-data-health)
@@ -42,7 +42,7 @@ editing; the maintainer adds new editors (both the sheet sharing and Google's li
 | Amounts paid, received, returned; balances | Solana, read on every update | none; label what the dashboard cannot match (section 3) |
 | Votes, results, voting power, participation | the Star Atlas governance API | none |
 | PIP details: name, amount, currency, phase, category, Council term | the Tracker tab of the sheet | keep them current (section 4) |
-| Milestones, checklists, upcoming payments, wallets, members, minutes | the sheet | add and update them here |
+| Milestones, checklists, wallets, members, minutes | the sheet | add and update them here |
 | The Ecosystem Fund limit and refills | Solana and the rules set by the PIPs | none |
 
 > [!NOTE]
@@ -151,23 +151,19 @@ still has open items is a warning on the Data health page.
 
 ---
 
-## 6. Upcoming and recurring payments
+## 6. Possible extensions: Budget and upcoming payments
 
-> [!IMPORTANT]
-> Preview: upcoming and recurring payments, like the Budget page, are not part of the PIP-36 delivery. They can be
-> tried by signed-in editors; completing them is possible as a follow-up.
+> [!NOTE]
+> Not part of the PIP-36 delivery. Signed-in editors see two teasers of how the dashboard could be extended. Each
+> shows a screenshot; nothing on them can be used.
 
-Payments the DAO knows are coming, such as an invoice that is due, are listed on the Payments and Budget pages, for
-signed-in editors only.
-**Add upcoming payment**: due date, which account pays it, what it is for (a cost category or a PIP), the fiscal year,
-amount, currency and a short description.
+- **Budget** page: the DAO's budget in one place. Income, running costs, the Foundation budget (PIP-2) per fiscal
+  year, the USDC runway and the balances at every Fund refill (PIP-23), planned ahead with the payments the Council
+  knows are coming.
+- **Upcoming payments**, at the end of the Payments page: invoices and recurring costs entered once with their
+  documents, and marked paid against the payout that settled them.
 
-- **Repeats** (monthly, quarterly, yearly) with an end date (**Until**) makes it recurring: each payment made moves its
-  next due date on by one period.
-- **Mark paid** links it to its payout; the payout then carries its category and fiscal year. A one-off payment leaves
-  the list.
-- **Documents** attaches the invoice, as on payouts.
-- **Edit** and **Delete** in its row.
+Contact Ryden (@ryden.systems on Discord) for info on these features.
 
 ---
 
@@ -236,14 +232,10 @@ The sheet is where the dashboard keeps everything; editing on the dashboard is t
 
 - The dashboard adds tabs and columns by itself the first time a save needs them. Do not rename tabs or column
   headers.
-- Tabs that hold IDs (PIP milestones, Checklists, Upcoming payments, the Tracker's Draft ID) need them: do not change
+- Tabs that hold IDs (PIP milestones, Checklists, the Tracker's Draft ID) need them: do not change
   or reuse an ID by hand.
 - Every update saves a copy of every tab into the dashboard's repository, so earlier versions stay available.
 
 > [!WARNING]
 > The sheet must stay viewable by anyone with its link: the dashboard reads it that way. So never enter any private
 > information in it.
-
-> [!NOTE]
-> The Budget page is a preview, not part of the PIP-36 delivery: it can be tried by signed-in editors, and completing
-> it is possible as a follow-up.

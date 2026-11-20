@@ -60,9 +60,9 @@ await go("#payments");
 ok(!nodes.view.innerHTML.includes('data-act="lbl-open"'), "no Label buttons while signed out");
 ok(!nodes.view.innerHTML.includes("Payouts to label"), "Payouts to label is hidden while signed out");
 await go("#budget");
-ok(!text().includes("Foundation budget"), "the Budget page is not shown while signed out");
+ok(!text().includes("What this page can become"), "the Budget teaser is not shown while signed out");
 await go("#payments");
-ok(!text().includes("Upcoming payments"), "upcoming payments are not shown on Payments while signed out (part of the Budget preview)");
+ok(!text().includes("Upcoming payments"), "the Upcoming payments teaser is not shown on Payments while signed out");
 
 // ---------- sign in with a stub core ----------
 const calls = [];

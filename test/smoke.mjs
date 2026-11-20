@@ -63,7 +63,8 @@ for (const r of routes) {
     const len = html.length;
     const bad = /undefined|NaN|\[object Object\]/.exec(html.replace(/<[^>]+>/g, " "));
     if (r === "health" && !html.includes("f-sev")) throw new Error("the Data health page was not rendered");
-    if (r === "budget" && !html.includes("Foundation budget")) throw new Error("the Budget page was not rendered");
+    // The Budget page is a teaser of a possible extension: its intro and a screenshot.
+    if (r === "budget" && !html.includes("class=\"teaser\"")) throw new Error("the Budget teaser was not rendered");
     if (len < 200) throw new Error(`page is nearly empty (${len} chars)`);
     if (bad) throw new Error(`rendered text contains "${bad[0]}"`);
     // Council members: every term (current, incoming, past) is listed on the Council page.

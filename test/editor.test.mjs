@@ -6,9 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { ROOT, parseCSV } from "../scripts/lib/util.mjs";
-import { parsePipTab, parseLabelTab, parseMembersTab, parseWalletsTab, parseMinutesTab, parseUpcomingTab, parseMilestonesTab, parseChecklistTab } from "../scripts/lib/sheet.mjs";
+import { parsePipTab, parseLabelTab, parseMembersTab, parseWalletsTab, parseMinutesTab, parseMilestonesTab, parseChecklistTab } from "../scripts/lib/sheet.mjs";
 import { pipPlans, milestoneLabels } from "../scripts/lib/plans.mjs";
-import { budgetOf } from "../scripts/lib/budget.mjs";
 import { councilVideos } from "../scripts/lib/videos.mjs";
 import { reconcile } from "../scripts/lib/reconcile.mjs";
 import { squadsSend } from "../scripts/lib/walletkinds.mjs";
@@ -406,66 +405,6 @@ ok(docList.length === 2 && docList[1].link === "https://drive/2" && docList[0].b
   const V = councilVideos({ store, terms: [{ label: "Term 4", start: "2026-10-11" }], minutes: [{ day: "2026-11-03", title: "", text: "PIP-36 approved" }, { day: "2026-10-28", title: "Recording failed", text: "notes on PIP-40" }] });
   ok(V.meetings.length === 2 && V.meetings[0].id === "V1" && V.meetings[0].minutes === "PIP-36 approved" && V.meetings[0].pips.includes(36), "minutes attach to the same day's recording, and their PIPs count");
   ok(V.meetings[1].noRecording && V.meetings[1].url === null && V.meetings[1].title === "Recording failed" && V.meetings[1].term === "Term 4" && V.meetings[1].pips.includes(40), "minutes without a recording are a meeting of their own");
-}
-
-// ---------- upcoming payments ----------
-{
-  ok((await core.addUpcoming({ due: "1.12.2026", account: "treasury", for: "Operating costs", amount: "100" })).error, "a due date that is not YYYY-MM-DD is refused");
-  ok((await core.addUpcoming({ due: "2026-12-01", account: "treasury", for: "Operating costs", amount: "0" })).error, "an amount of 0 is refused");
-  ok((await core.addUpcoming({ due: "2026-12-01", account: "", for: "Operating costs", amount: "100" })).error, "the paying account is required");
-  let u = await core.addUpcoming({ due: "2026-12-01", account: "treasury", for: "Operating costs", fiscalYear: "2027", amount: "1,234.50", currency: "USDC", description: "- annual fees" });
-  ok(u.saved && /^U[0-9A-Z]+$/.test(u.id) && u.gid != null && book["Upcoming payments"]?.[0]?.join() === SM.UPCOMING_HEADERS.join(), "first upcoming payment creates the tab with an ID: " + JSON.stringify(u));
-  const back = parseUpcomingTab(book["Upcoming payments"]);
-  ok(back.length === 1 && back[0].id === u.id && back[0].due === "2026-12-01" && back[0].account === "treasury" && back[0].amount === 1234.5 && back[0].fiscalYear === "2027" && back[0].description === "- annual fees" && !back[0].paidBy, "the build reads it back as written: " + JSON.stringify(back[0]));
-  ok((await core.updateUpcoming(u.id, { due: "2026-12-02", account: "treasury", for: "Foundation", fiscalYear: "2027", amount: "1234.50", currency: "USDC", description: "annual fees" })).updated, "an upcoming payment can be edited");
-  const edited = parseUpcomingTab(book["Upcoming payments"])[0];
-  ok(edited.id === u.id && edited.for === "Foundation" && edited.due === "2026-12-02" && edited.description === "annual fees", "the edit keeps its ID and changes the fields: " + JSON.stringify(edited));
-  ok((await core.updateUpcoming("UNKNOWN", { due: "2026-12-02", account: "treasury", for: "Foundation", amount: "1" })).error, "editing an ID that is not in the sheet is refused");
-  const extra = await core.addUpcoming({ due: "2027-01-15", account: "treasury", for: "Hosting", amount: "50" });
-  ok((await core.deleteUpcoming(extra.id)).deleted && parseUpcomingTab(book["Upcoming payments"]).map((x) => x.id).join() === u.id, "deleting removes only that row");
-  ok((await core.markUpcomingPaid(u.id, "not-a-signature")).error, "marking paid needs a transaction signature");
-  const SIG = "5".repeat(88);
-  ok((await core.markUpcomingPaid(u.id, SIG)).saved && parseUpcomingTab(book["Upcoming payments"])[0].paidBy === SIG, "marking paid stores the payout's transaction");
-
-  // Budget: an unpaid Foundation invoice counts in its fiscal year and comes off the Treasury on its due date.
-  const rules = { foundation: [{ from: "2024-07-23", pip: 2, budgetUsdPerYear: 100000 }], fund: [{ from: "2024-08-06", pip: 4, pipLimitPercent: 5, pipLimitBasis: "lastRefill", targetSharePercent: 20, usdcThreshold: 500000, usdcSharePercent: 20, refillDates: ["03-31", "06-30", "09-30", "12-31"] }] };
-  const base = { accounts: { treasury: { now: { ATLAS: 1000, USDC: 50000 } }, fund: { now: { ATLAS: 100 } } }, rules, settings: { foundationCategories: ["Operating costs"], projectRefills: 2 }, nowTs: Date.parse("2026-11-06T00:00:00Z") / 1000 };
-  const inv = { id: "U1", due: "2026-12-01", account: "treasury", for: "Operating costs", fiscalYear: "2027", amount: 12000, currency: "USDC", description: "", paidBy: null };
-  const without = budgetOf(base), withInv = budgetOf({ ...base, upcoming: [inv] });
-  ok(withInv.foundation.years.find((y) => y.year === "2027")?.upcoming === 12000, "the invoice counts in fiscal year 2027 of the Foundation budget");
-  const dec = (b) => b.projection.find((s) => s.date === "2026-12-31").treasuryUSDC;
-  ok(dec(without) - dec(withInv) === 12000, "the projection takes it off the Treasury's USDC by its due date");
-  ok(budgetOf({ ...base, upcoming: [{ ...inv, paidBy: SIG }] }).upcoming.length === 0, "a paid entry leaves the upcoming list");
-
-  // Repeating payments: saved with Repeats and Until, each Mark paid adds one transaction and moves the next due date.
-  ok((await core.addUpcoming({ due: "2026-12-01", account: "treasury", for: "Council expenses", amount: "1000", until: "2027-03-01" })).error, "Until without Repeats is refused");
-  ok((await core.addUpcoming({ due: "2026-12-01", account: "treasury", for: "Council expenses", amount: "1000", repeats: "Monthly", until: "2026-11-01" })).error, "Until before Due is refused");
-  const rp = await core.addUpcoming({ due: "2026-11-30", account: "treasury", for: "Council expenses", fiscalYear: "2026", amount: "1000", repeats: "Monthly", until: "2027-02-28" });
-  const findR = () => parseUpcomingTab(book["Upcoming payments"]).find((x) => x.id === rp.id);
-  let r1 = findR();
-  ok(rp.saved && r1.every === 1 && r1.repeats === "monthly" && r1.until === "2027-02-28" && r1.next === "2026-11-30" && !r1.fiscalYear && !r1.paidBy, "a monthly payment reads back with its end date and no fixed fiscal year: " + JSON.stringify(r1));
-  const SIG2 = "6".repeat(88), SIG3 = "7".repeat(88);
-  ok((await core.markUpcomingPaid(rp.id, SIG2)).count === 1 && findR().next === "2026-12-30", "the first payment moves the next due date on by a month");
-  ok((await core.markUpcomingPaid(rp.id, SIG2)).error, "the same payout cannot be recorded twice");
-  ok((await core.markUpcomingPaid(rp.id, SIG3)).count === 2 && findR().paid.join() === [SIG2, SIG3].join() && findR().paidYears.join() === "2026,2026", "a second payment is added, each with the year it was due");
-  // A tab made before Repeats and Until existed gets the columns on the next save.
-  const old = SM.UPCOMING_HEADERS.slice(0, 9);
-  book["Upcoming payments"] = [old, ["U1", "'2026-12-01", "DAO Treasury", "Hosting", "", "50", "USDC", "", ""]];
-  ok((await core.updateUpcoming("U1", { due: "2026-12-01", account: "treasury", for: "Hosting", amount: "50", repeats: "Yearly" })).updated && book["Upcoming payments"][0].slice(9).join() === "Repeats,Until" && parseUpcomingTab(book["Upcoming payments"])[0].repeats === "yearly", "missing Repeats/Until columns are added before saving: " + JSON.stringify(book["Upcoming payments"][0]));
-
-  // Budget: every monthly due date comes off the Treasury; done once the next date passes Until; Foundation years per due date.
-  const mo = { id: "R1", due: "2026-12-15", every: 1, repeats: "monthly", until: null, next: "2026-12-15", paid: [], account: "treasury", for: "Operating costs", amount: 1000, currency: "USDC", description: "", paidBy: null };
-  const withMo = budgetOf({ ...base, upcoming: [mo] });
-  ok(dec(without) - dec(withMo) === 1000, "by 2026-12-31 one monthly payment is taken");
-  const mar = (b) => b.projection.find((s) => s.date === "2027-03-31").treasuryUSDC;
-  ok(mar(without) - mar(withMo) === 4000, "by 2027-03-31 four monthly payments are taken");
-  ok(mar(without) - mar(budgetOf({ ...base, upcoming: [{ ...mo, until: "2027-01-31" }] })) === 2000, "it stops after its end date");
-  ok(withMo.upcoming.length === 1 && withMo.upcoming[0].due === "2026-12-15" && withMo.recurringMonthly === 1000, "it is listed once, at its next due date");
-  ok(withMo.foundation.years.find((y) => y.year === "2026")?.upcomingCount === 1 && withMo.foundation.years.find((y) => y.year === "2027")?.upcomingCount === 10, "Foundation budget: each due date counts in its own year (12 months ahead)");
-  // Its category's past average is replaced, not added to.
-  const paid12 = Array.from({ length: 12 }, (_, i) => ({ sig: "p" + i, t: Date.UTC(2025, 10 + i, 10) / 1000, account: "treasury", direction: "out", symbol: "USDC", amount: 500, category: "Operating costs", confidence: "labelled" }));
-  const hist = budgetOf({ ...base, payments: paid12 }), histMo = budgetOf({ ...base, payments: paid12, upcoming: [mo] });
-  ok(hist.rate.tU === -500 && histMo.rate.tU === 0 && histMo.replaced.categories.join() === "Operating costs", "a repeating payment replaces its category's average in the projection: " + hist.rate.tU + " / " + histMo.rate.tU);
 }
 
 // ---------- PIP milestones and checklists ----------
