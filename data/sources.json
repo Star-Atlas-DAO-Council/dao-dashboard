@@ -2914,7 +2914,6 @@
   }
  ],
  "minutes": [],
- "upcoming": [],
  "milestones": [],
  "checklists": [],
  "tabs": {
@@ -2946,10 +2945,6 @@
    "gid": null,
    "name": "Meeting minutes"
   },
-  "upcomingPayments": {
-   "gid": null,
-   "name": "Upcoming payments"
-  },
   "pipMilestones": {
    "gid": null,
    "name": "PIP milestones"
@@ -2959,5 +2954,5 @@
    "name": "Checklists"
   }
  },
- "fetchedAt": "2026-11-19T11:43:07.460Z"
+ "fetchedAt": "2026-11-20T11:04:57.422Z"
 }
