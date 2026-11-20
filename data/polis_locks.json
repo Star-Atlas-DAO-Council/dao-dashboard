@@ -1,13 +1,13 @@
 {
  "latest": {
-  "at": "2026-11-20T11:05:35.000Z",
+  "at": "2026-11-20T11:43:48.000Z",
   "accounts": 7609,
   "running": 5005,
   "expired": 2594,
   "empty": 10,
   "polisRunning": 121185930,
   "polisExpired": 10150703,
-  "pvp": 749802409,
+  "pvp": 749784786,
   "pvpWeightedDaysLeft": 1490,
   "multiplier": 10,
   "maxLockDays": 1825
@@ -144,14 +144,14 @@
    "maxLockDays": 1825
   },
   "2026-11-20": {
-   "at": "2026-11-20T11:05:35.000Z",
+   "at": "2026-11-20T11:43:48.000Z",
    "accounts": 7609,
    "running": 5005,
    "expired": 2594,
    "empty": 10,
    "polisRunning": 121185930,
    "polisExpired": 10150703,
-   "pvp": 749802409,
+   "pvp": 749784786,
    "pvpWeightedDaysLeft": 1490,
    "multiplier": 10,
    "maxLockDays": 1825
