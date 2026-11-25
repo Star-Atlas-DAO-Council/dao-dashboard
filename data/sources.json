@@ -2916,6 +2916,7 @@
  "minutes": [],
  "milestones": [],
  "checklists": [],
+ "fundNet": [],
  "tabs": {
   "pips": {
    "gid": "0",
@@ -2952,7 +2953,11 @@
   "checklists": {
    "gid": null,
    "name": "Checklists"
+  },
+  "fundRefills": {
+   "gid": null,
+   "name": "Fund refills"
   }
  },
- "fetchedAt": "2026-11-25T17:40:33.790Z"
+ "fetchedAt": "2026-11-25T18:00:52.818Z"
 }
