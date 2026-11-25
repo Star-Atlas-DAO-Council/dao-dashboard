@@ -20,6 +20,7 @@ export function sheetSources({ rowsOf, tabs = {}, fetchedAt = new Date().toISOSt
     minutes: opt("meetingMinutes", parseMinutesTab, []),
     milestones: opt("pipMilestones", parseMilestonesTab, []),
     checklists: opt("checklists", parseChecklistTab, []),
+    fundNet: opt("fundRefills", parseFundNetTab, []),
     tabs,
     fetchedAt,
   };
@@ -263,6 +264,23 @@ export function parseChecklistTab(rows) {
       evidence: get(r, "ev") || null,
     };
   }).filter((c) => c.pip && c.list && c.item);
+}
+
+// Optional "Fund refills" tab: the Council's net amount of an Ecosystem Fund refill (the balance after it, less
+// what approved PIPs were still owed then), which the PIP limit is taken from instead of the full balance.
+// Headers: "Refill" (the refill's day), "Net ATLAS" (empty = the full balance), "Source", "By".
+// One entry per day; the first row for a day wins.
+export function parseFundNetTab(rows) {
+  const hi = rows.findIndex((r) => r.some((c) => /^refill$/i.test(clean(c))) && r.some((c) => /^net/i.test(clean(c))));
+  if (hi < 0) return [];
+  const h = rows[hi].map((c) => clean(c).toLowerCase());
+  const at = (n) => h.findIndex((x) => x === n || x.startsWith(n));
+  const C = { date: at("refill"), net: at("net"), source: at("source"), by: at("by") };
+  const get = (r, k) => (C[k] >= 0 ? clean(r[C[k]]) : "");
+  const seen = new Set();
+  return rows.slice(hi + 1)
+    .map((r) => { const n = parseNum(get(r, "net")); return { date: dateCell(get(r, "date")), net: n.state === "ok" && n.value > 0 ? n.value : null, source: get(r, "source") || null, by: get(r, "by") || null }; })
+    .filter((x) => x.date && !seen.has(x.date) && seen.add(x.date));
 }
 
 // Optional tab maintained by the Council: one row per on-chain payout they have labelled.

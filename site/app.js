@@ -799,6 +799,35 @@
         } catch (e) { ed.walletMsg = { err: e.message }; }
         render(); return;
       }
+      // Ecosystem Fund: the net basis of a refill, saved to the sheet's "Fund refills" tab.
+      case "net-open": {
+        const p = (D.limit?.periods ?? []).find((x) => x.refill && x.from === el.dataset.date);
+        if (!p) return;
+        const r = p.refill;
+        ed.fundNet = { date: p.from, gross: r.balanceAfter, net: r.net ?? "", source: r.netSource ?? "", has: r.net != null }; ed.fundNetMsg = null;
+        render(); return;
+      }
+      case "net-cancel": ed.fundNet = null; render(); return;
+      case "net-save": case "net-clear": {
+        const d = ed.fundNet;
+        if (!d) return;
+        const clear = act === "net-clear";
+        const net = clear ? "" : val("fn-net").trim().replace(/[,\s]/g, ""), source = clear ? "" : val("fn-source").trim();
+        if (!clear) {
+          d.net = net; d.source = source;
+          const err = !/^\d+(\.\d+)?$/.test(net) || !(Number(net) > 0) ? "Net ATLAS: enter the amount, e.g. 279854680."
+            : Number(net) > d.gross ? `Net ATLAS: at most the balance after the refill, ${num(d.gross)}.`
+            : !source ? "Source: say where the figure comes from." : "";
+          if (err) { ed.fundNetMsg = { err }; render(); return; }
+        }
+        el.disabled = true;
+        try {
+          const r = await ED.core.saveFundNet({ date: d.date, net, source, by: ED.state.email ?? "" });
+          ed.fundNetMsg = r.error ? { err: r.error } : { ok: clear ? `The refill of ${d.date} uses its full balance again.` : `Saved the net basis of the refill of ${d.date}: ${num(Number(net))} ATLAS.` };
+          if (!r.error) { ed.fundNet = null; if (r.tab) window.DashLive?.addTab?.("fundRefills", r.tab, r.gid); liveRefresh(); }
+        } catch (e) { ed.fundNetMsg = { err: e.message }; }
+        render(); return;
+      }
       // Meeting minutes: the form keeps what was typed in ed.minutes (see the input listener), so a
       // live refresh while someone is writing does not lose it.
       // Opening other minutes or cancelling would drop unsaved text: the form asks first, in place.
@@ -1607,6 +1636,15 @@
     const fund = D.series.fundATLAS?.points ?? [];
     const C = L.current, R = L.refill, rule = L.rules.find((v) => v.pip === C.rule.pip) ?? C.rule;
     const pct = (x) => `${(x * 100).toFixed(1)}%`;
+    // Where a net basis comes from: its source, and the sheet or the configuration.
+    const netNote = (p) => [p.netSource, p.netFrom === "sheet" ? `Council's sheet, "Fund refills" tab` : ""].filter(Boolean).join(" · ");
+    const nd = ed.fundNet;
+    const netForm = nd ? `<div class="edform">
+      <p class="wide"><strong>Net basis of the refill of ${esc(nd.date)}</strong> <span class="sub">Balance after it: ${num(nd.gross)} ATLAS. Enter it less what approved PIPs were still owed at that moment.</span></p>
+      <label>Net ATLAS *<input id="fn-net" placeholder="e.g. 279854680" value="${esc(nd.net ?? "")}"></label>
+      <label>Source *<input id="fn-source" placeholder="where the figure comes from" value="${esc(nd.source ?? "")}"></label>
+      <div class="edact wide"><button class="btn primary" data-act="net-save">Save</button><button class="btn" data-act="net-cancel">Cancel</button>${nd.has ? `<button class="btn danger" data-act="net-clear" title="Take the limit from the full balance after this refill">Use the full balance</button>` : ""}</div>
+    </div>` : "";
     const why = (p) => (p.cause === "rule" ? `${ruleLink(p.rule)} in force` : `${p.cause === "funding" ? "Initial funding" : "Refill"} +${num(p.refill.amount)} ${solTx(p.refill.sig)}`);
     const RULES = [
       ["PIP limit", (v) => `${v.pipLimitPercent}% ${BASIS[v.pipLimitBasis] ?? v.pipLimitBasis}, per PIP`],
@@ -1632,10 +1670,11 @@
     <section class="sec">
       ${sub("PIP limit history")}
       <div class="tbl"><table>
-        <thead><tr><th>From</th><th>To</th><th>Why it changed</th><th>Rule</th><th class="r">Basis</th><th class="r">PIP limit</th></tr></thead>
-        <tbody>${[...L.periods].reverse().map((p) => `<tr><td class="mono">${esc(p.from)}</td><td class="mono">${p.to ? esc(p.to) : `<span class="sub">now</span>`}</td><td>${why(p)}</td><td>${ruleLink(p.rule)}</td><td class="n">${num(p.base)}${p.gross != null ? `<div class="sub" title="${esc(p.netSource ?? "")}">net · balance ${num(p.gross)}</div>` : ""}</td><td class="n"><strong>${num(p.limit)}</strong></td></tr>`).join("")}</tbody>
+        <thead><tr><th>From</th><th>To</th><th>Why it changed</th><th>Rule</th><th class="r">Basis</th><th class="r">PIP limit</th>${editing() ? "<th></th>" : ""}</tr></thead>
+        <tbody>${[...L.periods].reverse().map((p) => `<tr><td class="mono">${esc(p.from)}</td><td class="mono">${p.to ? esc(p.to) : `<span class="sub">now</span>`}</td><td>${why(p)}</td><td>${ruleLink(p.rule)}</td><td class="n">${num(p.base)}${p.gross != null ? `<div class="sub" title="${esc(netNote(p))}">net · balance ${num(p.gross)}</div>` : ""}</td><td class="n"><strong>${num(p.limit)}</strong></td>${editing() ? `<td class="r">${p.refill ? `<button class="btn sm ed-btn" data-act="net-open" data-date="${esc(p.from)}" title="Give the net amount of this refill">Net</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody>
       </table></div>
       <p class="src">Basis: the balance the ${C.rule.percent}% is taken from. Under ${ruleLink(L.rules[0])} that was the fund's initial funding; since ${ruleLink(rule)}, the balance after the latest refill. Net: where the Council has given it, the balance after the refill less the obligations still open at that moment (approved PIPs not paid yet), so open payments do not raise the limit.</p>
+      ${editing() ? `<div class="ed-zone">${netForm}${okMsg(ed.fundNetMsg)}<p class="src">Net: before a refill, the Council moves what approved PIPs are still owed into multisigs, so the balance after it is free money. Where that did not happen, give the refill's net amount with <strong>Net</strong>; it is saved to the sheet's "Fund refills" tab and shows here right away.</p></div>` : ""}
     </section>
     <section class="sec">
       ${sub("Rules", `<span class="src">set by DAO vote</span>`)}
@@ -2176,7 +2215,7 @@
     if (bar) bar.innerHTML = editBar();
   }
 
-  const EDIT_ACTIONS = new Set(["plan-cancel", "ms-add", "ms-edit", "ms-pay", "ms-del", "ms-done", "ms-import", "ms-import-all", "ms-save", "ms-pay-save", "ms-pay-clear", "ms-del-yes", "ck-add", "ck-edit", "ck-del", "ck-save", "ck-del-yes", "ck-tick", "min-open", "min-cancel", "min-keep", "min-discard", "min-fmt", "min-copy", "min-preview", "min-take", "min-save", "min-overwrite", "ed-signin", "ed-signout", "ed-update", "doc-open", "doc-close", "doc-upload", "wal-open", "wal-reuse", "wal-cancel", "wal-save", "ed-preview", "lbl-open", "lbl-cancel", "lbl-save", "lbl-clear", "lbl-clear-yes", "lbl-clear-no", "pip-edit", "pip-new", "pip-new-cancel", "pip-add", "pip-reload", "pip-cancel", "pip-save", "pip-overwrite", "mem-seed", "mem-open", "mem-cancel", "mem-save", "mem-list", "mem-edit", "mem-del", "mem-del-no", "mem-del-yes", "min-del", "min-del-no", "min-del-yes", "wal-del", "wal-del-no", "wal-del-yes", "doc-del", "doc-del-no", "doc-del-yes"]);
+  const EDIT_ACTIONS = new Set(["net-open", "net-cancel", "net-save", "net-clear", "plan-cancel", "ms-add", "ms-edit", "ms-pay", "ms-del", "ms-done", "ms-import", "ms-import-all", "ms-save", "ms-pay-save", "ms-pay-clear", "ms-del-yes", "ck-add", "ck-edit", "ck-del", "ck-save", "ck-del-yes", "ck-tick", "min-open", "min-cancel", "min-keep", "min-discard", "min-fmt", "min-copy", "min-preview", "min-take", "min-save", "min-overwrite", "ed-signin", "ed-signout", "ed-update", "doc-open", "doc-close", "doc-upload", "wal-open", "wal-reuse", "wal-cancel", "wal-save", "ed-preview", "lbl-open", "lbl-cancel", "lbl-save", "lbl-clear", "lbl-clear-yes", "lbl-clear-no", "pip-edit", "pip-new", "pip-new-cancel", "pip-add", "pip-reload", "pip-cancel", "pip-save", "pip-overwrite", "mem-seed", "mem-open", "mem-cancel", "mem-save", "mem-list", "mem-edit", "mem-del", "mem-del-no", "mem-del-yes", "min-del", "min-del-no", "min-del-yes", "wal-del", "wal-del-no", "wal-del-yes", "doc-del", "doc-del-no", "doc-del-yes"]);
   function editClick(e) {
     const el = e.target.closest("[data-act]");
     if (!el || !EDIT_ACTIONS.has(el.dataset.act)) return false;

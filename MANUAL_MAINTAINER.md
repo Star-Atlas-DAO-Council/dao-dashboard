@@ -310,7 +310,6 @@ through a commit (which also rebuilds the site). Keys starting with `_` are note
 | `governance` | the governance API and the proposals site | if Star Atlas moves them |
 | `rpc` | the default RPC endpoints; the repository secrets override them (section 5) | rarely |
 | `daoRules` | the rules set by PIPs: `fund` (Ecosystem Fund limit and refills), `foundation` (the Foundation's yearly budget) | a PIP that changes a rule (below) |
-| `fundLimitNet` | the Council's net amount of a refill (balance after it, less the obligations still open then), which the PIP limit is taken from instead of the full balance | after a refill with open obligations |
 | `reconcile` | payouts below these amounts are not listed as needing a label (100 USDC, 10,000 ATLAS) | rarely |
 
 ### When a PIP changes a rule
@@ -512,6 +511,7 @@ tab and column it needs the first time a save needs it; editors normally never t
 | Council members | member and term | Name, Role, Term, Start, End, Elected (PIP), Wallet, Discord, X, Image, Show |
 | Meeting minutes | meeting day | Date, Title, Minutes (Discord formatting), Show |
 | Payment documents | uploaded file | Signature, Recipient, File, Link, Uploaded (UTC), By |
+| Fund refills | Ecosystem Fund refill with a net basis | Refill (the refill's day), Net ATLAS (empty = the full balance), Source, By |
 | Dashboard | (one row) | the time of the last **Update now**, and who pressed it |
 | Accomplishment Numbers | (the Council's own) | read as history only |
 

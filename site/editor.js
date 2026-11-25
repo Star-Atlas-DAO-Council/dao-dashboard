@@ -455,6 +455,35 @@
         return { saved: true, deleted: hits.length };
       },
 
+      // The Council's net amount of an Ecosystem Fund refill: one row per refill day in the "Fund refills"
+      // tab (created on the first save). An empty net is saved too: it means the full balance. Returns the
+      // tab's gid, like saveMinutes.
+      async saveFundNet({ date, net = "", source = "", by = "" }) {
+        const msg = SM.validate("required", date) || SM.validate("date", date) || SM.validate("num", net);
+        if (msg) return { error: msg };
+        const tab = tabs.fundRefills || "Fund refills";
+        await core.ensureTab(tab, SM.FUND_NET_HEADERS);
+        const rows = await core.readTab(tab);
+        const hi = SM.findHeaderRow(rows, ["Refill"]);
+        if (hi < 0) return { error: `The "${tab}" tab has no header row with "Refill".` };
+        const h = await withColumns(tab, rows, hi, SM.FUND_NET_HEADERS), cD = SM.colIndex(h, "Refill");
+        const hits = [];
+        for (let i = hi + 1; i < rows.length; i++) if (SM.isoDate(rows[i][cD]) === date) hits.push(i);
+        const amount = SM.clean(net).replace(/[,\s]/g, "");
+        const values = { Refill: SM.textDate(date), "Net ATLAS": amount === "" ? "" : String(Number(amount)), Source: txt(source), By: SM.clean(by) };
+        if (hits.length) {
+          await core.writeCells(tab, Object.entries(values).map(([k, value]) => ({ row: hits[0], col: SM.colIndex(h, k), value })).filter((c) => c.col >= 0));
+          if (hits.length > 1) await core.deleteRows(tab, hits.slice(1));
+        } else {
+          const row = [];
+          for (const [k, v] of Object.entries(values)) { const c = SM.colIndex(h, k); if (c >= 0) row[c] = v; }
+          await core.appendRow(tab, Array.from(row, (v) => v ?? ""));
+        }
+        const j = await call("?fields=sheets.properties(title,sheetId)");
+        const gid = (j.sheets || []).find((s) => s.properties.title === tab)?.properties.sheetId;
+        return { saved: true, updated: hits.length > 0, tab, gid: gid == null ? null : String(gid) };
+      },
+
       // PIP milestones and checklist items: one row each in their own tab (created on the first save),
       // found by their ID. Ticking an item saves the date and who ticked it.
       // Every milestone change also writes the PIP's counts into the Tracker (see syncTrackerCounts).

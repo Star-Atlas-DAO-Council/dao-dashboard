@@ -21,6 +21,9 @@
   // payout that paid it. Milestones made from the Tracker's old counts say "Tracker" in Completed by.
   const MILESTONE_HEADERS = ["ID", "PIP", "#", "Milestone", "Amount", "Currency", "Paid by (tx)", "Completed on", "Completed by"];
   const CHECKLIST_HEADERS = ["ID", "PIP", "Checklist", "Milestone", "Item", "Done on", "Done by", "Evidence"];
+  // The Council's net amount of an Ecosystem Fund refill: "Refill" is the refill's day, an empty "Net ATLAS"
+  // means the full balance after it.
+  const FUND_NET_HEADERS = ["Refill", "Net ATLAS", "Source", "By"];
   // Google Sheets holds at most 50,000 characters in one cell.
   const MINUTES_MAX = 50000;
   // Minutes keep their line breaks, so they are compared without collapsing whitespace.
@@ -173,5 +176,5 @@
     return [m.name, m.role || "Council member", m.term || "", textDate(m.start), textDate(m.end), m.electedIn ? `PIP-${m.electedIn}` : "", m.wallet || "", m.discord || "", m.x ? String(m.x).replace(/^@/, "") : "", m.image || "", "TRUE"];
   }
 
-  root.SheetMap = { clean, LABEL_HEADERS, DOC_HEADERS, WALLET_HEADERS, MEMBER_HEADERS, MINUTES_HEADERS, MILESTONE_HEADERS, CHECKLIST_HEADERS, MINUTES_MAX, PHASES, PIP_FIELDS, pipFormValue, pipSheetValue, minutesText, isoDate, textDate, findHeaderRow, colIndex, colLetter, a1, a1Tab, trackerColumns, locatePip, validate, memberRow };
+  root.SheetMap = { clean, LABEL_HEADERS, DOC_HEADERS, WALLET_HEADERS, MEMBER_HEADERS, MINUTES_HEADERS, MILESTONE_HEADERS, CHECKLIST_HEADERS, FUND_NET_HEADERS, MINUTES_MAX, PHASES, PIP_FIELDS, pipFormValue, pipSheetValue, minutesText, isoDate, textDate, findHeaderRow, colIndex, colLetter, a1, a1Tab, trackerColumns, locatePip, validate, memberRow };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -61,7 +61,8 @@
       "wallets": "Wallets",
       "meetingMinutes": "Meeting minutes",
       "pipMilestones": "PIP milestones",
-      "checklists": "Checklists"
+      "checklists": "Checklists",
+      "fundRefills": "Fund refills"
     },
     "_tabsNote": "Each tab is a gid (digits) or a tab name. Named tabs are found automatically once they exist, including tabs created from the dashboard's editor."
   },
@@ -114,12 +115,6 @@
         "budgetUsdPerYear": 100000,
         "_note": "A recurring annual budget of no more than 100,000 USD from the Treasury for the Foundation's operations and maintenance; anything beyond needs a DAO vote in advance."
       }
-    ]
-  },
-  "fundLimitNet": {
-    "_note": "The PIP limit is taken from the fund's NET balance after a refill: the balance once the obligations still open at that moment (approved PIPs not paid yet) are set aside. The chain alone cannot tell all of them, so the Council gives the net amount of a refill here: date = the refill's day (YYYY-MM-DD, as listed on the Ecosystem Fund page), net = ATLAS. A refill without an entry uses its full balance after the refill.",
-    "refills": [
-      { "date": "2026-07-08", "net": 279854680, "source": "Council, Discord 2026-11-25" }
     ]
   },
   "reconcile": {

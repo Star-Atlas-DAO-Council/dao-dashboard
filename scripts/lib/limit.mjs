@@ -27,7 +27,8 @@ function nextDate(dates, ts) {
   return [y, y + 1].flatMap((yy) => dates.map((d) => `${yy}-${d}`)).sort().find((d) => d >= today) ?? null;
 }
 
-// netBases: the Council's net amount for a refill ({ date: "YYYY-MM-DD", net, source }), config fundLimitNet.
+// netBases: the Council's net amount for a refill ({ date: "YYYY-MM-DD", net, source, from }), from the sheet's
+// "Fund refills" tab (one entry per date, net null = full balance).
 // The limit is meant to be taken from what is left after a refill once the obligations still open at
 // that moment (approved PIPs not paid yet) are set aside; the chain alone cannot tell all of them, so
 // where the Council gives that amount it replaces the balance after the refill as the basis.
@@ -39,7 +40,7 @@ export function fundLimits({ ledger, fundNow, treasuryNow = {}, rules = [], netB
   const refills = rows
     .filter((r) => r.delta > 0 && r.legs.some((l) => l.dao === "treasury"))
     .map((r) => ({ t: r.t, sig: r.sig, amount: round(r.delta), balanceAfter: round(balanceAt(ledger, fundNow, "fund", "ATLAS", r.t + 1)) }))
-    .map((r) => { const n = netBases.find((x) => x.date === isoOf(r.t) && x.net > 0); return n ? { ...r, net: round(n.net), netSource: n.source ?? null } : r; });
+    .map((r) => { const n = netBases.find((x) => x.date === isoOf(r.t)); return n?.net > 0 ? { ...r, net: round(n.net), netSource: n.source ?? null, netFrom: n.from ?? null } : r; });
   if (!refills.length) return { periods: [], current: null, refills: [], lastRefill: null, rules, refill: null };
 
   // The limit changes at every refill and whenever a new rule version starts.
@@ -60,7 +61,7 @@ export function fundLimits({ ledger, fundNow, treasuryNow = {}, rules = [], netB
       rule: { pip: v.pip, from: v.from, basis: v.pipLimitBasis, percent: v.pipLimitPercent },
       base, limit: round((base * v.pipLimitPercent) / 100),
       // Set when the basis is the Council's net amount: the full balance after that refill, and who gave it.
-      gross: from.net != null ? from.balanceAfter : null, netSource: from.net != null ? from.netSource : null,
+      gross: from.net != null ? from.balanceAfter : null, netSource: from.net != null ? from.netSource : null, netFrom: from.net != null ? from.netFrom : null,
     });
   }
   periods.forEach((p, i) => { p.to = periods[i + 1] ? isoOf(periods[i + 1].fromTs - DAY) : null; });

@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { ROOT, parseCSV } from "../scripts/lib/util.mjs";
-import { parsePipTab, parseLabelTab, parseMembersTab, parseWalletsTab, parseMinutesTab, parseMilestonesTab, parseChecklistTab } from "../scripts/lib/sheet.mjs";
+import { parsePipTab, parseLabelTab, parseMembersTab, parseWalletsTab, parseMinutesTab, parseMilestonesTab, parseChecklistTab, parseFundNetTab } from "../scripts/lib/sheet.mjs";
 import { pipPlans, milestoneLabels } from "../scripts/lib/plans.mjs";
 import { councilVideos } from "../scripts/lib/videos.mjs";
 import { reconcile } from "../scripts/lib/reconcile.mjs";
@@ -316,6 +316,27 @@ ok(walletsBack.length === 1 && walletsBack[0].track === true && walletsBack[0].l
   ok((await coreT.updateMember("Nobody|Term 9|", { name: "x" })).error?.includes("Reload"), "editing a row that changed in the sheet is refused");
   r = await coreT.deleteMember((await coreT.listMembers())[1].key);
   ok(r.deleted && book["Council members"].length === 2 && book["Council members"][1][0] === "Winston", "a member can be deleted");
+  for (const k of Object.keys(book)) if (!(k in keep)) delete book[k];
+  Object.assign(book, keep);
+}
+
+// ---------- Ecosystem Fund: the net basis of a refill ("Fund refills" tab) ----------
+{
+  const keep = { ...book };
+  const coreF = ctx.Editor.makeCore({ sheetId: "SHEET", tabs: { pips: "Tracker", fundRefills: "Fund refills" }, fetchFn: fakeFetch, getToken: async () => "token" });
+  ok((await coreF.saveFundNet({ date: "8.7.2026", net: "1" })).error, "a refill date that is not YYYY-MM-DD is refused");
+  ok((await coreF.saveFundNet({ date: "2026-07-08", net: "abc" })).error, "a net amount that is not a number is refused");
+  let r = await coreF.saveFundNet({ date: "2026-07-08", net: "279,854,680", source: "Council, Discord", by: "ed@example.org" });
+  let back = parseFundNetTab(book["Fund refills"]);
+  ok(r.saved && !r.updated && r.tab === "Fund refills" && book["Fund refills"][0].join() === SM.FUND_NET_HEADERS.join(), "the first save creates the tab with its headers");
+  ok(back.length === 1 && back[0].date === "2026-07-08" && back[0].net === 279854680 && back[0].source === "Council, Discord" && back[0].by === "ed@example.org", "the build reads back what was saved: " + JSON.stringify(back));
+  r = await coreF.saveFundNet({ date: "2026-07-08", net: "280000000", source: "Council sheet", by: "ed@example.org" });
+  back = parseFundNetTab(book["Fund refills"]);
+  ok(r.updated && back.length === 1 && back[0].net === 280000000 && back[0].source === "Council sheet", "saving the same refill again updates its row");
+  r = await coreF.saveFundNet({ date: "2026-07-08", net: "", source: "", by: "ed@example.org" });
+  back = parseFundNetTab(book["Fund refills"]);
+  ok(r.updated && back.length === 1 && back[0].net === null, "an empty net is kept as a row: the full balance");
+  ok(parseFundNetTab([["Refill", "Net ATLAS", "Source", "By"], ["7/8/2026", "1,000", "a", ""], ["2026-07-08", "2,000", "b", ""], ["", "5", "", ""]]).map((x) => `${x.date}:${x.net}`).join() === "2026-07-08:1000", "the sheet's US dates are read; the first row of a day wins; rows without a date are skipped");
   for (const k of Object.keys(book)) if (!(k in keep)) delete book[k];
   Object.assign(book, keep);
 }

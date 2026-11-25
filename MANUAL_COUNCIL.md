@@ -43,12 +43,23 @@ editing; the maintainer adds new editors (both the sheet sharing and Google's li
 | Votes, results, voting power, participation | the Star Atlas governance API | none |
 | PIP details: name, amount, currency, phase, category, Council term | the Tracker tab of the sheet | keep them current (section 4) |
 | Milestones, checklists, wallets, members, minutes | the sheet | add and update them here |
-| The Ecosystem Fund limit and refills | Solana and the rules set by the PIPs | none |
+| The Ecosystem Fund limit and refills | Solana and the rules set by the PIPs | only after a refill with open obligations (below) |
 
 > [!NOTE]
 > Figures from the chain or the governance API are calculated, never typed in, so they cannot be edited. If one looks
 > wrong, the cause is usually a missing label or a sheet value that disagrees with the chain: the Data health page
 > lists both (section 9).
+
+### The PIP limit after a refill
+
+The PIP limit is 5% of the Ecosystem Fund's balance right after its latest refill. Before a refill, move what approved
+PIPs are still owed into multisigs: then that balance is free money and the limit is right without anything to do.
+
+If a refill happened while approved PIPs were still owed from the fund (the 2026-07-08 refill: 17,576,392 ATLAS for
+two PIPs), the limit would come from too high a balance. Then give the refill's net amount: on the Ecosystem Fund page,
+**Net** in the refill's row of the PIP limit history, enter the balance after the refill less what was still owed,
+and where the figure comes from, then **Save**. The limit shows "net" with the full balance beside it, for everyone
+right away. **Use the full balance** takes it back. The amount is saved in the sheet's "Fund refills" tab.
 
 ---
 

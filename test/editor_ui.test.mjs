@@ -307,6 +307,32 @@ ok(calls.some((c) => c[0] === "requestUpdate" && c[1] === "editor@example.org") 
   Object.assign(need, was);
 }
 
+// ---------- Ecosystem Fund: the net basis of a refill ----------
+{
+  const P = D.limit.periods.filter((p) => p.refill).at(-1);
+  ctx.Editor.core.saveFundNet = async (a) => { calls.push(["saveFundNet", a]); return { saved: true, tab: "Fund refills", gid: "77" }; };
+  await go("#limit");
+  ok(nodes.view.innerHTML.includes(`data-act="net-open" data-date="${P.from}"`), "editors get a Net button on each refill row");
+  await click("net-open", { date: P.from });
+  ok(nodes.view.innerHTML.includes('id="fn-net"') && text().includes(`Net basis of the refill of ${P.from}`), "Net opens the form for that refill");
+  Object.assign(inputs, { "fn-net": String(P.refill.balanceAfter + 1), "fn-source": "Council" });
+  await click("net-save");
+  ok(!calls.some((c) => c[0] === "saveFundNet") && text().includes("at most the balance after the refill"), "a net amount above the balance after the refill is refused");
+  Object.assign(inputs, { "fn-net": "279,854,680", "fn-source": "" });
+  await click("net-save");
+  ok(!calls.some((c) => c[0] === "saveFundNet") && text().includes("Source: say where"), "a net amount without a source is refused");
+  Object.assign(inputs, { "fn-net": "279,854,680", "fn-source": "Council, Discord" });
+  await click("net-save");
+  const sf = calls.find((c) => c[0] === "saveFundNet");
+  ok(sf && sf[1].date === P.from && sf[1].net === "279854680" && sf[1].source === "Council, Discord" && sf[1].by === "editor@example.org" && text().includes("Saved the net basis"), "saving sends the refill's day, amount, source and editor: " + JSON.stringify(sf?.[1]));
+  if (P.refill.net != null) {
+    await click("net-open", { date: P.from });
+    await click("net-clear");
+    const cl = calls.filter((c) => c[0] === "saveFundNet").pop();
+    ok(cl[1].net === "" && text().includes("uses its full balance again"), "Use the full balance saves an empty net");
+  }
+}
+
 // ---------- wallets on the Balances page ----------
 {
   const W = "B5hX2Aj8FYmdYjXQFVF1jpz7BkrdpLXgSPs92G6DFGjA";
