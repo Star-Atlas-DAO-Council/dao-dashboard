@@ -27,14 +27,19 @@ function nextDate(dates, ts) {
   return [y, y + 1].flatMap((yy) => dates.map((d) => `${yy}-${d}`)).sort().find((d) => d >= today) ?? null;
 }
 
-export function fundLimits({ ledger, fundNow, treasuryNow = {}, rules = [], nowTs = Date.now() / 1000 }) {
+// netBases: the Council's net amount for a refill ({ date: "YYYY-MM-DD", net, source }), config fundLimitNet.
+// The limit is meant to be taken from what is left after a refill once the obligations still open at
+// that moment (approved PIPs not paid yet) are set aside; the chain alone cannot tell all of them, so
+// where the Council gives that amount it replaces the balance after the refill as the basis.
+export function fundLimits({ ledger, fundNow, treasuryNow = {}, rules = [], netBases = [], nowTs = Date.now() / 1000 }) {
   const rows = ledger.rows.filter((r) => r.account === "fund" && r.symbol === "ATLAS");
   if (!rows.length || !rules.length) return { periods: [], current: null, refills: [], lastRefill: null, rules: [], refill: null };
 
   // Refills: ATLAS from the DAO Treasury into the fund, with the fund's balance right after.
   const refills = rows
     .filter((r) => r.delta > 0 && r.legs.some((l) => l.dao === "treasury"))
-    .map((r) => ({ t: r.t, sig: r.sig, amount: round(r.delta), balanceAfter: round(balanceAt(ledger, fundNow, "fund", "ATLAS", r.t + 1)) }));
+    .map((r) => ({ t: r.t, sig: r.sig, amount: round(r.delta), balanceAfter: round(balanceAt(ledger, fundNow, "fund", "ATLAS", r.t + 1)) }))
+    .map((r) => { const n = netBases.find((x) => x.date === isoOf(r.t) && x.net > 0); return n ? { ...r, net: round(n.net), netSource: n.source ?? null } : r; });
   if (!refills.length) return { periods: [], current: null, refills: [], lastRefill: null, rules, refill: null };
 
   // The limit changes at every refill and whenever a new rule version starts.
@@ -46,13 +51,16 @@ export function fundLimits({ ledger, fundNow, treasuryNow = {}, rules = [], nowT
   for (const s of starts) {
     const v = ruleAt(rules, s.ts);
     const last = refills.filter((r) => r.t <= s.ts).pop();
-    const base = v.pipLimitBasis === "initialFunding" ? refills[0].balanceAfter : last.balanceAfter;
+    const from = v.pipLimitBasis === "initialFunding" ? refills[0] : last;
+    const base = from.net ?? from.balanceAfter;
     periods.push({
       from: isoOf(s.ts), fromTs: s.ts,
       cause: s.refill ? (s.refill === refills[0] ? "funding" : "refill") : "rule",
       refill: s.refill ?? null,
       rule: { pip: v.pip, from: v.from, basis: v.pipLimitBasis, percent: v.pipLimitPercent },
       base, limit: round((base * v.pipLimitPercent) / 100),
+      // Set when the basis is the Council's net amount: the full balance after that refill, and who gave it.
+      gross: from.net != null ? from.balanceAfter : null, netSource: from.net != null ? from.netSource : null,
     });
   }
   periods.forEach((p, i) => { p.to = periods[i + 1] ? isoOf(periods[i + 1].fromTs - DAY) : null; });

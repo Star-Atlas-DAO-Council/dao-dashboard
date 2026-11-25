@@ -1619,7 +1619,7 @@
       ${head("Ecosystem Fund", `<span class="src">Solana mainnet · rules from ${ruleLink(rule)}</span>`)}
       <p class="lede">No single Ecosystem Fund PIP may exceed ${C.rule.percent}% ${BASIS[C.rule.basis] ?? ""} (${ruleLink(rule)}). The limit caps each PIP; it is not a budget for a period. It is recalculated from the fund's on-chain history on every build.</p>
       <div class="kpis">
-        ${kpi("PIP limit", num(C.limit), "ATLAS", `${C.rule.percent}% of ${num(C.base)} · since ${esc(C.from)}`)}
+        ${kpi("PIP limit", num(C.limit), "ATLAS", `${C.rule.percent}% of ${num(C.base)}${C.gross != null ? " net" : ""} · since ${esc(C.from)}`)}
         ${kpi("Fund balance", compact(fund.at(-1)?.[1] ?? D.accounts.fund.now.ATLAS), "ATLAS", R?.share != null ? `${pct(R.share)} of the DAO's ATLAS (target ${R.targetSharePercent}%)` : "")}
         ${R ? kpi("Next refill", R.atlasDue ? compact(R.atlasDue) : "none due", R.atlasDue ? "ATLAS" : "", `${R.nextDate ? `on or about ${esc(R.nextDate)}` : ""}${R.usdcDue ? ` · plus ${num(R.usdcDue)} USDC` : ""}`) : ""}
         ${kpi("Last refill", L.lastRefill ? compact(L.lastRefill.amount) : "—", L.lastRefill ? "ATLAS" : "", L.lastRefill ? `${day(L.lastRefill.t)} · ${solTx(L.lastRefill.sig)}` : "")}
@@ -1633,9 +1633,9 @@
       ${sub("PIP limit history")}
       <div class="tbl"><table>
         <thead><tr><th>From</th><th>To</th><th>Why it changed</th><th>Rule</th><th class="r">Basis</th><th class="r">PIP limit</th></tr></thead>
-        <tbody>${[...L.periods].reverse().map((p) => `<tr><td class="mono">${esc(p.from)}</td><td class="mono">${p.to ? esc(p.to) : `<span class="sub">now</span>`}</td><td>${why(p)}</td><td>${ruleLink(p.rule)}</td><td class="n">${num(p.base)}</td><td class="n"><strong>${num(p.limit)}</strong></td></tr>`).join("")}</tbody>
+        <tbody>${[...L.periods].reverse().map((p) => `<tr><td class="mono">${esc(p.from)}</td><td class="mono">${p.to ? esc(p.to) : `<span class="sub">now</span>`}</td><td>${why(p)}</td><td>${ruleLink(p.rule)}</td><td class="n">${num(p.base)}${p.gross != null ? `<div class="sub" title="${esc(p.netSource ?? "")}">net · balance ${num(p.gross)}</div>` : ""}</td><td class="n"><strong>${num(p.limit)}</strong></td></tr>`).join("")}</tbody>
       </table></div>
-      <p class="src">Basis: the balance the ${C.rule.percent}% is taken from. Under ${ruleLink(L.rules[0])} that was the fund's initial funding; since ${ruleLink(rule)}, the balance after the latest refill.</p>
+      <p class="src">Basis: the balance the ${C.rule.percent}% is taken from. Under ${ruleLink(L.rules[0])} that was the fund's initial funding; since ${ruleLink(rule)}, the balance after the latest refill. Net: where the Council has given it, the balance after the refill less the obligations still open at that moment (approved PIPs not paid yet), so open payments do not raise the limit.</p>
     </section>
     <section class="sec">
       ${sub("Rules", `<span class="src">set by DAO vote</span>`)}

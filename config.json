@@ -116,6 +116,12 @@
       }
     ]
   },
+  "fundLimitNet": {
+    "_note": "The PIP limit is taken from the fund's NET balance after a refill: the balance once the obligations still open at that moment (approved PIPs not paid yet) are set aside. The chain alone cannot tell all of them, so the Council gives the net amount of a refill here: date = the refill's day (YYYY-MM-DD, as listed on the Ecosystem Fund page), net = ATLAS. A refill without an entry uses its full balance after the refill.",
+    "refills": [
+      { "date": "2026-07-08", "net": 279854680, "source": "Council, Discord 2026-11-25" }
+    ]
+  },
   "reconcile": {
     "ignoreUsdcBelow": 100,
     "ignoreAtlasBelow": 10000

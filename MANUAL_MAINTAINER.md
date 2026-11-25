@@ -310,6 +310,7 @@ through a commit (which also rebuilds the site). Keys starting with `_` are note
 | `governance` | the governance API and the proposals site | if Star Atlas moves them |
 | `rpc` | the default RPC endpoints; the repository secrets override them (section 5) | rarely |
 | `daoRules` | the rules set by PIPs: `fund` (Ecosystem Fund limit and refills), `foundation` (the Foundation's yearly budget) | a PIP that changes a rule (below) |
+| `fundLimitNet` | the Council's net amount of a refill (balance after it, less the obligations still open then), which the PIP limit is taken from instead of the full balance | after a refill with open obligations |
 | `reconcile` | payouts below these amounts are not listed as needing a label (100 USDC, 10,000 ATLAS) | rarely |
 
 ### When a PIP changes a rule

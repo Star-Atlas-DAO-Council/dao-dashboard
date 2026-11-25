@@ -32,7 +32,7 @@ export function compute({ config, sources, proposals, ledger, history, now, nowA
     return { ...w, from };
   });
   const recon = reconcile({ pips: sources.pips, ledger, labels, wallets: walletRows, config });
-  const limit = fundLimits({ ledger, fundNow: now.fund.ATLAS, treasuryNow: now.treasury, rules: config.daoRules?.fund ?? [], nowTs });
+  const limit = fundLimits({ ledger, fundNow: now.fund.ATLAS, treasuryNow: now.treasury, rules: config.daoRules?.fund ?? [], netBases: config.fundLimitNet?.refills ?? [], nowTs });
   const flags = healthChecks({ pips: sources.pips, missingColumns: sources.missingColumns, proposals, recon, ledger, history, now, config, nowTs });
   for (const w of walletRows) if (w.since && w.from == null) flags.push({ severity: "warning", area: "sheet", message: `Wallets tab: ${w.name || w.wallet} has Since "${w.since}", which is not a PIP with a vote end date or a date (YYYY-MM-DD), so that row counts from the wallet's first payout.` });
   // Per wallet: its purposes in time order; the last one is the current one.
